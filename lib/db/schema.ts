@@ -6,6 +6,7 @@ import {
   boolean,
   timestamp,
   uuid,
+  unique,
 } from "drizzle-orm/pg-core";
 
 export const profiles = pgTable("profiles", {
@@ -40,21 +41,25 @@ export const tracks = pgTable("tracks", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-export const ratings = pgTable("ratings", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  trackId: uuid("track_id")
-    .notNull()
-    .references(() => tracks.id),
-  raterId: text("rater_id")
-    .notNull()
-    .references(() => profiles.id),
-  dimension1: integer("dimension_1").notNull(), // 1-10
-  dimension2: integer("dimension_2").notNull(),
-  dimension3: integer("dimension_3").notNull(),
-  dimension4: integer("dimension_4").notNull(),
-  feedback: text("feedback"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+export const ratings = pgTable(
+  "ratings",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    trackId: uuid("track_id")
+      .notNull()
+      .references(() => tracks.id),
+    raterId: text("rater_id")
+      .notNull()
+      .references(() => profiles.id),
+    dimension1: integer("dimension_1").notNull(), // 1-10
+    dimension2: integer("dimension_2").notNull(),
+    dimension3: integer("dimension_3").notNull(),
+    dimension4: integer("dimension_4").notNull(),
+    feedback: text("feedback"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [unique("ratings_track_rater_unique").on(t.trackId, t.raterId)]
+);
 
 export const creditTransactions = pgTable("credit_transactions", {
   id: uuid("id").primaryKey().defaultRandom(),

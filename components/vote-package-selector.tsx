@@ -1,29 +1,29 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { VOTE_PACKAGES, type VotePackage } from "@/lib/constants/packages";
+import { VOTE_PACKAGES } from "@/lib/constants/packages";
 
 interface VotePackageSelectorProps {
-  selected: VotePackage;
-  onSelect: (pkg: VotePackage) => void;
+  selectedIndex: number;
+  onSelect: (index: number) => void;
   userCredits: number;
 }
 
 export function VotePackageSelector({
-  selected,
+  selectedIndex,
   onSelect,
   userCredits,
 }: VotePackageSelectorProps) {
   return (
     <div className="grid grid-cols-3 gap-3">
-      {VOTE_PACKAGES.map((pkg) => {
-        const isSelected = selected.votes === pkg.votes;
+      {VOTE_PACKAGES.map((pkg, index) => {
+        const isSelected = index === selectedIndex;
         const canAfford = pkg.isFree || userCredits >= pkg.credits;
         return (
           <button
             key={pkg.votes}
             type="button"
-            onClick={() => canAfford && onSelect(pkg)}
+            onClick={() => canAfford && onSelect(index)}
             disabled={!canAfford}
             className={cn(
               "flex flex-col items-center gap-1 rounded-xl border-2 p-3 transition-all",

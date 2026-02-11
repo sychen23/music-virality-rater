@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -34,6 +34,12 @@ export default function UploadPage() {
     setFile(f);
     setTitle(f.name.replace(/\.[^.]+$/, ""));
 
+    // Revoke previous object URL to avoid memory leaks
+    setAudioUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+
     // Get duration from audio
     const url = URL.createObjectURL(f);
     setAudioUrl(url);
@@ -60,7 +66,10 @@ export default function UploadPage() {
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Upload failed");
       setFile(null);
-      setAudioUrl(null);
+      setAudioUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return null;
+      });
     } finally {
       setUploading(false);
     }
@@ -98,6 +107,7 @@ export default function UploadPage() {
   };
 
   const handleClear = () => {
+    if (audioUrl) URL.revokeObjectURL(audioUrl);
     setFile(null);
     setAudioUrl(null);
     setUploadedFilename(null);
@@ -106,6 +116,13 @@ export default function UploadPage() {
     setTosAccepted(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
+
+  // Revoke object URL on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      if (audioUrl) URL.revokeObjectURL(audioUrl);
+    };
+  }, [audioUrl]);
 
   const snippetDuration = snippetEnd - snippetStart;
   const isSnippetValid = snippetDuration >= 15 && snippetDuration <= 30;

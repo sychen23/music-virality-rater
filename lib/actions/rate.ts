@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { ratings, tracks, profiles, creditTransactions } from "@/lib/db/schema";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, and } from "drizzle-orm";
 
 export async function submitRating(data: {
   trackId: string;
@@ -19,63 +19,91 @@ export async function submitRating(data: {
 
   const raterId = session.user.id;
 
-  // Create rating
-  await db.insert(ratings).values({
-    trackId: data.trackId,
-    raterId,
-    dimension1: data.dimension1,
-    dimension2: data.dimension2,
-    dimension3: data.dimension3,
-    dimension4: data.dimension4,
-    feedback: data.feedback || null,
-  });
+  const result = await db.transaction(async (tx) => {
+    // Prevent duplicate ratings — check + unique constraint as belt-and-suspenders
+    const existing = await tx.query.ratings.findFirst({
+      where: and(eq(ratings.trackId, data.trackId), eq(ratings.raterId, raterId)),
+      columns: { id: true },
+    });
+    if (existing) throw new Error("You have already rated this track");
 
-  // Increment votes_received on track
-  const [updatedTrack] = await db
-    .update(tracks)
-    .set({ votesReceived: sql`${tracks.votesReceived} + 1` })
-    .where(eq(tracks.id, data.trackId))
-    .returning();
+    // Create rating
+    await tx.insert(ratings).values({
+      trackId: data.trackId,
+      raterId,
+      dimension1: data.dimension1,
+      dimension2: data.dimension2,
+      dimension3: data.dimension3,
+      dimension4: data.dimension4,
+      feedback: data.feedback || null,
+    });
 
-  // Update rater profile
-  const [updatedProfile] = await db
-    .update(profiles)
-    .set({
-      tracksRated: sql`${profiles.tracksRated} + 1`,
-      ratingProgress: sql`${profiles.ratingProgress} + 1`,
-    })
-    .where(eq(profiles.id, raterId))
-    .returning();
+    // Increment votes_received on track
+    const [updatedTrack] = await tx
+      .update(tracks)
+      .set({ votesReceived: sql`${tracks.votesReceived} + 1` })
+      .where(eq(tracks.id, data.trackId))
+      .returning();
 
-  // Check if rating progress reached 5
-  if (updatedProfile.ratingProgress >= 5) {
-    // Reset progress and add credit
-    await db
+    // Increment rater stats
+    const [updatedProfile] = await tx
       .update(profiles)
       .set({
-        ratingProgress: 0,
-        credits: sql`${profiles.credits} + 1`,
+        tracksRated: sql`${profiles.tracksRated} + 1`,
+        ratingProgress: sql`${profiles.ratingProgress} + 1`,
       })
-      .where(eq(profiles.id, raterId));
+      .where(eq(profiles.id, raterId))
+      .returning();
 
-    await db.insert(creditTransactions).values({
-      userId: raterId,
-      amount: 1,
-      type: "rating_bonus",
-    });
-  }
+    // Check if rating progress reached 5 — use atomic compare-and-set
+    // to prevent concurrent requests from both awarding a credit.
+    let creditEarned = false;
+    if (updatedProfile.ratingProgress >= 5) {
+      // Only reset & award if ratingProgress is still >= 5 (guards against
+      // a concurrent transaction that already reset it).
+      const [reset] = await tx
+        .update(profiles)
+        .set({
+          ratingProgress: 0,
+          credits: sql`${profiles.credits} + 1`,
+        })
+        .where(
+          and(
+            eq(profiles.id, raterId),
+            sql`${profiles.ratingProgress} >= 5`
+          )
+        )
+        .returning({ id: profiles.id });
 
-  // If track reached vote goal, compute scores
+      if (reset) {
+        creditEarned = true;
+        await tx.insert(creditTransactions).values({
+          userId: raterId,
+          amount: 1,
+          type: "rating_bonus",
+        });
+      }
+    }
+
+    return {
+      updatedTrack,
+      creditEarned,
+      newProgress: creditEarned ? 0 : updatedProfile.ratingProgress,
+    };
+  });
+
+  // If track reached vote goal, compute scores (outside transaction
+  // since this is a read-heavy idempotent operation)
   if (
-    updatedTrack &&
-    updatedTrack.votesReceived >= updatedTrack.votesRequested
+    result.updatedTrack &&
+    result.updatedTrack.votesReceived >= result.updatedTrack.votesRequested
   ) {
     await computeTrackScores(data.trackId);
   }
 
   return {
-    creditEarned: updatedProfile.ratingProgress >= 5,
-    newProgress: updatedProfile.ratingProgress >= 5 ? 0 : updatedProfile.ratingProgress,
+    creditEarned: result.creditEarned,
+    newProgress: result.newProgress,
   };
 }
 
@@ -103,9 +131,12 @@ async function computeTrackScores(trackId: string) {
 
   let percentile = 50;
   if (track?.contextId) {
-    // Count all completed tracks in same context with lower score
+    // Count all completed tracks in the same context with lower score
     const allCompleted = await db.query.tracks.findMany({
-      where: eq(tracks.status, "complete"),
+      where: and(
+        eq(tracks.status, "complete"),
+        eq(tracks.contextId, track.contextId)
+      ),
       columns: { overallScore: true },
     });
 

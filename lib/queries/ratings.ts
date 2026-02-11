@@ -30,9 +30,19 @@ export function generateInsights(
 ) {
   const insights: { title: string; description: string; variant: "success" | "warning" | "default" }[] = [];
 
-  // Find strongest dimension
+  // Find strongest/weakest dimension
   const maxIdx = dimensionAverages.indexOf(Math.max(...dimensionAverages));
   const minIdx = dimensionAverages.indexOf(Math.min(...dimensionAverages));
+
+  // Guard: bail to generic insights when dimensions are missing or empty
+  if (
+    maxIdx < 0 ||
+    minIdx < 0 ||
+    !dimensionNames[maxIdx] ||
+    !dimensionNames[minIdx]
+  ) {
+    return insights;
+  }
 
   insights.push({
     title: `Strongest: ${dimensionNames[maxIdx]}`,

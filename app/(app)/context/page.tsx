@@ -8,7 +8,7 @@ import { ContextCard } from "@/components/context-card";
 import { VotePackageSelector } from "@/components/vote-package-selector";
 import { EarnProgressBar } from "@/components/earn-progress-bar";
 import { CONTEXTS, type Context } from "@/lib/constants/contexts";
-import { VOTE_PACKAGES, type VotePackage } from "@/lib/constants/packages";
+import { VOTE_PACKAGES } from "@/lib/constants/packages";
 import { submitForRating } from "@/lib/actions/context";
 
 export default function ContextPage() {
@@ -17,9 +17,8 @@ export default function ContextPage() {
   const trackId = searchParams.get("trackId");
 
   const [selectedContext, setSelectedContext] = useState<Context | null>(null);
-  const [selectedPackage, setSelectedPackage] = useState<VotePackage>(
-    VOTE_PACKAGES[0]
-  );
+  const [selectedPackageIndex, setSelectedPackageIndex] = useState(0);
+  const selectedPackage = VOTE_PACKAGES[selectedPackageIndex];
   const [submitting, setSubmitting] = useState(false);
 
   // TODO: fetch real user credits from profile
@@ -34,8 +33,7 @@ export default function ContextPage() {
       await submitForRating({
         trackId,
         contextId: selectedContext.id,
-        votesRequested: selectedPackage.votes,
-        creditsCost: selectedPackage.credits,
+        packageIndex: selectedPackageIndex,
       });
       toast.success("Track submitted for rating!");
       router.push(`/results/${trackId}`);
@@ -99,8 +97,8 @@ export default function ContextPage() {
       <div className="mb-6">
         <h3 className="mb-3 text-sm font-medium">How many votes?</h3>
         <VotePackageSelector
-          selected={selectedPackage}
-          onSelect={setSelectedPackage}
+          selectedIndex={selectedPackageIndex}
+          onSelect={setSelectedPackageIndex}
           userCredits={userCredits}
         />
       </div>
