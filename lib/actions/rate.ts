@@ -157,7 +157,7 @@ async function computeTrackScores(trackId: string) {
 
   let percentile = 50;
   if (track?.contextId) {
-    // Count all completed tracks in the same context with lower score
+    // Fetch all already-completed tracks in the same context
     const allCompleted = await db.query.tracks.findMany({
       where: and(
         eq(tracks.status, "complete"),
@@ -170,10 +170,13 @@ async function computeTrackScores(trackId: string) {
       .map((t) => t.overallScore)
       .filter((s): s is number => s !== null);
 
-    if (scores.length > 0) {
-      const below = scores.filter((s) => s < overall).length;
-      percentile = Math.round((below / scores.length) * 100);
-    }
+    // Include the current track's score in the comparison set so the
+    // percentile is computed against all N+1 tracks (not just the N
+    // that were already marked "complete").
+    scores.push(overall);
+
+    const below = scores.filter((s) => s < overall).length;
+    percentile = Math.round((below / scores.length) * 100);
   }
 
   await db

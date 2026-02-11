@@ -3,6 +3,8 @@ import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { writeFile, mkdir } from "fs/promises";
 import { join, resolve, sep } from "path";
+import { db } from "@/lib/db";
+import { uploads } from "@/lib/db/schema";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const ALLOWED_TYPES = ["audio/mpeg", "audio/wav", "audio/x-m4a", "audio/mp4", "audio/m4a"];
@@ -47,6 +49,14 @@ export async function POST(request: NextRequest) {
 
   const buffer = Buffer.from(await file.arrayBuffer());
   await writeFile(filepath, buffer);
+
+  // Record upload in DB so createTrack can verify ownership
+  await db.insert(uploads).values({
+    userId: session.user.id,
+    filename,
+    originalName: file.name,
+    size: file.size,
+  });
 
   return NextResponse.json({
     filename,

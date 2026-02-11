@@ -33,21 +33,16 @@ export async function getTracksByUser(userId: string, page: number = 1, perPage:
 }
 
 export async function ensureProfile(userId: string, name?: string | null) {
-  const existing = await db.query.profiles.findFirst({
-    where: eq(profiles.id, userId),
-  });
-
-  if (!existing) {
-    await db.insert(profiles).values({
+  await db
+    .insert(profiles)
+    .values({
       id: userId,
       handle: name?.toLowerCase().replace(/\s+/g, "") || userId.slice(0, 8),
       credits: 20,
-    });
+    })
+    .onConflictDoNothing({ target: profiles.id });
 
-    return db.query.profiles.findFirst({
-      where: eq(profiles.id, userId),
-    });
-  }
-
-  return existing;
+  return db.query.profiles.findFirst({
+    where: eq(profiles.id, userId),
+  });
 }

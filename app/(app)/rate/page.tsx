@@ -41,6 +41,8 @@ export default function RatePage() {
       if (res.status === 404) {
         setNoTracks(true);
         setTrack(null);
+      } else if (!res.ok) {
+        throw new Error("Failed to load track");
       } else {
         const data = await res.json();
         setTrack(data.track);

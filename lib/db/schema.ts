@@ -61,6 +61,18 @@ export const ratings = pgTable(
   (t) => [unique("ratings_track_rater_unique").on(t.trackId, t.raterId)]
 );
 
+export const uploads = pgTable("uploads", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => profiles.id),
+  filename: text("filename").notNull().unique(),
+  originalName: text("original_name"),
+  size: integer("size"),
+  consumed: boolean("consumed").notNull().default(false), // true once linked to a track
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 export const creditTransactions = pgTable("credit_transactions", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: text("user_id")

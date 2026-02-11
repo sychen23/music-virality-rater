@@ -6,6 +6,7 @@ import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { eq, sql, and, gte } from "drizzle-orm";
 import { VOTE_PACKAGES } from "@/lib/constants/packages";
+import { getContextById } from "@/lib/constants/contexts";
 
 export async function submitForRating(data: {
   trackId: string;
@@ -14,6 +15,11 @@ export async function submitForRating(data: {
 }) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) throw new Error("Unauthorized");
+
+  // Validate contextId against the known CONTEXTS list
+  if (!getContextById(data.contextId)) {
+    throw new Error("Invalid context");
+  }
 
   // Look up package server-side — never trust client-supplied cost/votes
   const votePackage = VOTE_PACKAGES[data.packageIndex];
