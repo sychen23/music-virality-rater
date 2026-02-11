@@ -1,7 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
+import {
+  getSharedAudioContext,
+  getCachedWaveform,
+  setCachedWaveform,
+} from "@/lib/audio-context";
 
 interface WaveformVisualizerProps {
   audioUrl: string;
@@ -24,17 +29,23 @@ export function WaveformVisualizer({
   snippetEnd,
   onSeek,
 }: WaveformVisualizerProps) {
-  const [waveformData, setWaveformData] = useState<number[]>([]);
+  // Decoded waveform data fetched asynchronously (only used when cache misses)
+  const [fetchedData, setFetchedData] = useState<number[]>([]);
+
+  // Synchronously read from cache — avoids extra renders when data is already decoded
+  const cachedData = useMemo(
+    () => getCachedWaveform(audioUrl, bars),
+    [audioUrl, bars],
+  );
 
   useEffect(() => {
-    if (!audioUrl) return;
+    if (!audioUrl || cachedData) return;
 
     const abortController = new AbortController();
-    const audioContext = new AudioContext();
 
     fetch(audioUrl, { signal: abortController.signal })
       .then((res) => res.arrayBuffer())
-      .then((buffer) => audioContext.decodeAudioData(buffer))
+      .then((buffer) => getSharedAudioContext().decodeAudioData(buffer))
       .then((audioBuffer) => {
         if (abortController.signal.aborted) return;
 
@@ -52,22 +63,26 @@ export function WaveformVisualizer({
         }
 
         const max = Math.max(...barData, 0.01);
-        setWaveformData(barData.map((v) => v / max));
+        const normalized = barData.map((v) => v / max);
+
+        setCachedWaveform(audioUrl, bars, normalized);
+        setFetchedData(normalized);
       })
       .catch((err) => {
         // Ignore abort errors — they're expected during cleanup
         if (err instanceof DOMException && err.name === "AbortError") return;
         // Fallback: generate pseudo-random bars
-        setWaveformData(
+        setFetchedData(
           Array.from({ length: bars }, () => 0.2 + Math.random() * 0.8)
         );
       });
 
     return () => {
       abortController.abort();
-      audioContext.close();
     };
-  }, [audioUrl, bars]);
+  }, [audioUrl, bars, cachedData]);
+
+  const waveformData = cachedData ?? fetchedData;
 
   const handleClick = (e: React.MouseEvent<SVGSVGElement>) => {
     if (!onSeek || !duration) return;

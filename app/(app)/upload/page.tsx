@@ -20,9 +20,11 @@ export default function UploadPage() {
   const [file, setFile] = useState<File | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [uploadedFilename, setUploadedFilename] = useState<string | null>(null);
+  const [metadataLoaded, setMetadataLoaded] = useState(false);
   const [duration, setDuration] = useState(0);
   const [snippetStart, setSnippetStart] = useState(0);
   const [snippetEnd, setSnippetEnd] = useState(30);
+  const metadataAudioRef = useRef<HTMLAudioElement | null>(null);
   const [title, setTitle] = useState("");
   const [genreTags, setGenreTags] = useState<string[]>([]);
   const [tosAccepted, setTosAccepted] = useState(false);
@@ -33,6 +35,14 @@ export default function UploadPage() {
   const handleFile = useCallback(async (f: File) => {
     setFile(f);
     setTitle(f.name.replace(/\.[^.]+$/, ""));
+    setMetadataLoaded(false);
+
+    // Clean up previous metadata-probing Audio element
+    if (metadataAudioRef.current) {
+      metadataAudioRef.current.removeAttribute("src");
+      metadataAudioRef.current.load();
+      metadataAudioRef.current = null;
+    }
 
     // Revoke previous object URL to avoid memory leaks
     setAudioUrl((prev) => {
@@ -45,11 +55,15 @@ export default function UploadPage() {
     setAudioUrl(url);
 
     const audio = new Audio(url);
+    metadataAudioRef.current = audio;
     audio.addEventListener("loadedmetadata", () => {
+      // Guard against stale callbacks from a previously replaced file
+      if (metadataAudioRef.current !== audio) return;
       const dur = audio.duration;
       setDuration(dur);
       setSnippetStart(0);
       setSnippetEnd(Math.min(30, dur));
+      setMetadataLoaded(true);
     });
 
     // Upload the file
@@ -107,10 +121,20 @@ export default function UploadPage() {
   };
 
   const handleClear = () => {
+    // Clean up metadata-probing Audio element
+    if (metadataAudioRef.current) {
+      metadataAudioRef.current.removeAttribute("src");
+      metadataAudioRef.current.load();
+      metadataAudioRef.current = null;
+    }
     if (audioUrl) URL.revokeObjectURL(audioUrl);
     setFile(null);
     setAudioUrl(null);
     setUploadedFilename(null);
+    setMetadataLoaded(false);
+    setDuration(0);
+    setSnippetStart(0);
+    setSnippetEnd(30);
     setTitle("");
     setGenreTags([]);
     setTosAccepted(false);
@@ -127,7 +151,7 @@ export default function UploadPage() {
   const snippetDuration = snippetEnd - snippetStart;
   const isSnippetValid = snippetDuration >= 15 && snippetDuration <= 30;
   const canSubmit =
-    uploadedFilename && title.trim() && tosAccepted && isSnippetValid && !uploading && duration > 0;
+    uploadedFilename && title.trim() && tosAccepted && isSnippetValid && !uploading && metadataLoaded && duration > 0;
 
   return (
     <div className="mx-auto max-w-lg px-4 py-6">
