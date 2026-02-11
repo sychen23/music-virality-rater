@@ -45,12 +45,15 @@ export async function submitRating(data: {
     });
     if (existing) throw new Error("You have already rated this track");
 
-    // Prevent self-rating — blocks score inflation and credit farming
+    // Fetch track and verify it exists, is actively collecting, and isn't owned by the rater
     const track = await tx.query.tracks.findFirst({
       where: eq(tracks.id, data.trackId),
-      columns: { userId: true },
+      columns: { userId: true, status: true },
     });
     if (!track) throw new Error("Track not found");
+    if (track.status !== "collecting") {
+      throw new Error("This track is not currently accepting ratings");
+    }
     if (track.userId === raterId) throw new Error("You cannot rate your own track");
 
     // Create rating
@@ -119,9 +122,13 @@ export async function submitRating(data: {
   });
 
   // If track reached vote goal, compute scores (outside transaction
-  // since this is a read-heavy idempotent operation)
+  // since this is a read-heavy idempotent operation).
+  // Guard: votesRequested must be > 0 to avoid triggering on draft tracks
+  // where votesRequested defaults to 0 (defense-in-depth alongside the
+  // status === 'collecting' check above).
   if (
     result.updatedTrack &&
+    result.updatedTrack.votesRequested > 0 &&
     result.updatedTrack.votesReceived >= result.updatedTrack.votesRequested
   ) {
     await computeTrackScores(data.trackId);

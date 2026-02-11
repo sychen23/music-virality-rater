@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -8,8 +8,7 @@ import { ContextCard } from "@/components/context-card";
 import { VotePackageSelector } from "@/components/vote-package-selector";
 import { EarnProgressBar } from "@/components/earn-progress-bar";
 import { CONTEXTS, type Context } from "@/lib/constants/contexts";
-import { VOTE_PACKAGES } from "@/lib/constants/packages";
-import { submitForRating } from "@/lib/actions/context";
+import { submitForRating, getUserProfileData } from "@/lib/actions/context";
 
 export default function ContextPage() {
   const router = useRouter();
@@ -18,12 +17,21 @@ export default function ContextPage() {
 
   const [selectedContext, setSelectedContext] = useState<Context | null>(null);
   const [selectedPackageIndex, setSelectedPackageIndex] = useState(0);
-  const selectedPackage = VOTE_PACKAGES[selectedPackageIndex];
   const [submitting, setSubmitting] = useState(false);
 
-  // TODO: fetch real user credits from profile
-  const userCredits = 20;
-  const ratingProgress = 0;
+  const [userCredits, setUserCredits] = useState<number | null>(null);
+  const [ratingProgress, setRatingProgress] = useState(0);
+
+  useEffect(() => {
+    getUserProfileData()
+      .then(({ credits, ratingProgress }) => {
+        setUserCredits(credits);
+        setRatingProgress(ratingProgress);
+      })
+      .catch(() => {
+        setUserCredits(0);
+      });
+  }, []);
 
   const handleSubmit = async () => {
     if (!trackId || !selectedContext) return;
@@ -99,7 +107,7 @@ export default function ContextPage() {
         <VotePackageSelector
           selectedIndex={selectedPackageIndex}
           onSelect={setSelectedPackageIndex}
-          userCredits={userCredits}
+          userCredits={userCredits ?? 0}
         />
       </div>
 
@@ -115,7 +123,7 @@ export default function ContextPage() {
       <Button
         className="w-full"
         size="lg"
-        disabled={!selectedContext || submitting}
+        disabled={!selectedContext || submitting || userCredits === null}
         onClick={handleSubmit}
       >
         {submitting ? "Submitting..." : "Submit for Rating"}

@@ -8,6 +8,20 @@ import { eq, sql, and, gte } from "drizzle-orm";
 import { VOTE_PACKAGES } from "@/lib/constants/packages";
 import { getContextById } from "@/lib/constants/contexts";
 
+export async function getUserProfileData() {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) throw new Error("Unauthorized");
+
+  const profile = await db.query.profiles.findFirst({
+    where: eq(profiles.id, session.user.id),
+    columns: { credits: true, ratingProgress: true },
+  });
+
+  if (!profile) throw new Error("Profile not found");
+
+  return { credits: profile.credits, ratingProgress: profile.ratingProgress };
+}
+
 export async function submitForRating(data: {
   trackId: string;
   contextId: string;
