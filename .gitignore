@@ -40,6 +40,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# Neon Local
+.neon_local/
+
 # Claude
 .claude
 

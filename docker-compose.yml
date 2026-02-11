@@ -1,15 +1,14 @@
 services:
   db:
-    image: postgres:alpine
+    image: neondatabase/neon_local:latest
     restart: unless-stopped
     ports:
       - "5434:5432"
     environment:
-      POSTGRES_USER: soundcheck
-      POSTGRES_PASSWORD: doublesoundcheck
-      POSTGRES_DB: soundcheck
+      NEON_API_KEY: ${NEON_API_KEY}
+      NEON_PROJECT_ID: ${NEON_PROJECT_ID}
+      PARENT_BRANCH_ID: ${PARENT_BRANCH_ID:-}
+      DRIVER: serverless
     volumes:
-      - pgdata:/var/lib/postgresql/data
-
-volumes:
-  pgdata:
+      - ./.neon_local/:/tmp/.neon_local
+      - ./.git/HEAD:/tmp/.git/HEAD:ro
