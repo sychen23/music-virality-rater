@@ -54,11 +54,16 @@
   .side-by-side { display: flex; gap: 40px; justify-content: center; align-items: flex-start; flex-wrap: wrap; }
 
   /* Rating slider */
-  .rating-row { display: flex; align-items: center; gap: 12px; margin: 10px 0; }
-  .rating-label { font-size: 13px; font-weight: 600; width: 90px; flex-shrink: 0; }
-  .rating-track { flex: 1; height: 8px; background: #e8e8e8; border-radius: 4px; position: relative; }
-  .rating-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, #7c3aed, #a78bfa); }
-  .rating-value { font-size: 14px; font-weight: 700; width: 32px; text-align: right; }
+  .rating-card { background: #fafafa; border: 2px solid #e8e8e8; border-radius: 14px; padding: 14px 16px; margin: 10px 0; }
+  .rating-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .rating-card-label { font-size: 14px; font-weight: 700; }
+  .rating-card-value { font-size: 22px; font-weight: 800; color: #7c3aed; }
+  .rating-card-desc { font-size: 11px; color: #999; margin-bottom: 10px; }
+  .rating-slider-wrap { position: relative; width: 100%; height: 36px; display: flex; align-items: center; }
+  .rating-slider-track { width: 100%; height: 10px; background: #e8e8e8; border-radius: 5px; overflow: hidden; }
+  .rating-slider-fill { height: 100%; border-radius: 5px; background: linear-gradient(90deg, #7c3aed, #a78bfa); transition: width 0.15s; }
+  .rating-slider-thumb { position: absolute; width: 28px; height: 28px; background: #fff; border: 3px solid #7c3aed; border-radius: 50%; box-shadow: 0 2px 8px rgba(124,58,237,0.25); cursor: grab; transform: translateX(-50%); }
+  .rating-slider-labels { display: flex; justify-content: space-between; margin-top: 4px; font-size: 10px; color: #bbb; font-weight: 600; }
 
   /* Score card */
   .score-card { background: #fafafa; border: 2px solid #e8e8e8; border-radius: 16px; padding: 20px; margin: 10px 0; }
@@ -125,7 +130,7 @@
   <button onclick="showScreen('context')">3. Context</button>
   <button onclick="showScreen('rate')">4. Rate</button>
   <button onclick="showScreen('results')">5. Results</button>
-  <button onclick="showScreen('compare')">6. A/B Test</button>
+  <button onclick="showScreen('profile')">6. Profile</button>
 </div>
 
 <!-- ==================== SCREEN 1: LANDING ==================== -->
@@ -154,7 +159,7 @@
         &#10514; Upload Your Track
       </button>
       <button class="wf-btn" style="margin-top:4px;">
-        &#9654; Rate Music &amp; Earn Credits
+        &#9654; Rate Music &amp; Earn Votes
       </button>
 
       <hr class="wf-divider">
@@ -245,12 +250,57 @@
             });
           </script>
         </div>
+        <!-- Delete button -->
+        <div style="text-align:right; margin-top:6px;">
+          <button style="background:none; border:1px solid #e8e8e8; border-radius:8px; padding:4px 10px; font-size:11px; color:#ef4444; cursor:pointer; font-weight:600;">&#128465; Delete clip</button>
+        </div>
+      </div>
+
+      <!-- Snippet Trimmer -->
+      <div style="border:2px solid #e0e0e0; border-radius:14px; padding:14px; margin:10px 0;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <div style="font-size:13px; font-weight:700;">&#9986; Trim to 15-30s clip</div>
+          <div style="font-size:10px; color:#7c3aed; font-weight:600; background:#f5f0ff; padding:2px 8px; border-radius:8px;">Selected: 15s</div>
+        </div>
+        <!-- Trimmer waveform -->
+        <div style="position:relative; background:#f5f5f5; border-radius:8px; height:48px; overflow:hidden;">
+          <!-- Full track waveform bg -->
+          <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; gap:1px; padding:0 4px; opacity:0.3;" class="waveform"></div>
+          <!-- Selected region -->
+          <div style="position:absolute; top:0; bottom:0; left:20%; width:40%; background:rgba(124,58,237,0.15); border-left:3px solid #7c3aed; border-right:3px solid #7c3aed;">
+            <!-- Left handle -->
+            <div style="position:absolute; left:-8px; top:50%; transform:translateY(-50%); width:14px; height:28px; background:#7c3aed; border-radius:4px; cursor:ew-resize; display:flex; align-items:center; justify-content:center;">
+              <div style="font-size:8px; color:#fff;">||</div>
+            </div>
+            <!-- Right handle -->
+            <div style="position:absolute; right:-8px; top:50%; transform:translateY(-50%); width:14px; height:28px; background:#7c3aed; border-radius:4px; cursor:ew-resize; display:flex; align-items:center; justify-content:center;">
+              <div style="font-size:8px; color:#fff;">||</div>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-top:6px; font-size:10px; color:#aaa;">
+          <span>0:00</span>
+          <span style="color:#7c3aed; font-weight:600;">0:08 — 0:23</span>
+          <span>3:24</span>
+        </div>
+        <div style="display:flex; gap:6px; margin-top:8px;">
+          <button style="flex:1; padding:6px; border:1px solid #e0e0e0; border-radius:8px; font-size:11px; font-weight:600; background:#fff; cursor:pointer;">&#9654; Preview clip</button>
+          <button style="flex:1; padding:6px; border:1px solid #7c3aed; border-radius:8px; font-size:11px; font-weight:600; background:#f5f0ff; color:#7c3aed; cursor:pointer;">&#10003; Confirm trim</button>
+        </div>
       </div>
 
       <div class="wf-input" style="text-align:left;">&#128394; Track title (optional): "Midnight Highway"</div>
       <div class="wf-input" style="text-align:left;">&#127925; Genre tags: <span class="wf-tag selected" style="font-size:10px; padding:3px 8px;">Pop</span><span class="wf-tag selected" style="font-size:10px; padding:3px 8px;">Electronic</span><span class="wf-tag" style="font-size:10px; padding:3px 8px;">+ Add</span></div>
 
-      <button class="wf-btn accent" style="margin-top:16px;">Choose Context &#8594;</button>
+      <!-- ToS Checkbox -->
+      <div style="display:flex; align-items:flex-start; gap:8px; margin:12px 0 4px; padding:10px; background:#fafafa; border-radius:10px; border:1px solid #e8e8e8;">
+        <div style="width:18px; height:18px; border:2px solid #7c3aed; border-radius:4px; flex-shrink:0; display:flex; align-items:center; justify-content:center; background:#7c3aed; margin-top:1px;">
+          <span style="color:#fff; font-size:11px; font-weight:700;">&#10003;</span>
+        </div>
+        <div style="font-size:11px; color:#666; line-height:1.4;">I confirm I have the rights to this sound and agree to the <span style="color:#7c3aed; text-decoration:underline; cursor:pointer;">Terms of Service</span>. Uploading copyrighted material without permission may result in account suspension.</div>
+      </div>
+
+      <button class="wf-btn accent" style="margin-top:8px;">Choose Context &#8594;</button>
 
       <div style="flex:1;"></div>
       <div class="bottom-nav">
@@ -320,7 +370,14 @@
         <div class="wf-tag">100 votes<br><span style="font-size:9px; color:#888;">12 credits</span></div>
       </div>
 
-      <button class="wf-btn accent" style="margin-top:20px;">Submit for Rating &#9889;</button>
+      <!-- Earn more votes callout -->
+      <div style="background:#fffbeb; border:1px solid #fde68a; border-radius:10px; padding:10px 12px; margin:12px 0;">
+        <div style="font-size:12px; font-weight:700; color:#b45309;">&#9889; Earn votes by rating others</div>
+        <div style="font-size:11px; color:#92400e; margin-top:4px; line-height:1.4;">Rate 5 tracks = earn 1 credit. The more you rate, the more votes your tracks get.</div>
+        <button style="margin-top:8px; padding:6px 14px; border:1px solid #f59e0b; border-radius:8px; font-size:11px; font-weight:600; background:#fef3c7; color:#b45309; cursor:pointer;">&#9654; Start rating to earn</button>
+      </div>
+
+      <button class="wf-btn accent" style="margin-top:8px;">Submit for Rating &#9889;</button>
       <div class="wf-text" style="margin-top:6px; font-size:11px;">Results typically ready in 2-4 hours</div>
 
       <div style="flex:1;"></div>
@@ -346,18 +403,21 @@
     <div class="phone">
       <div class="phone-notch"></div>
       <div class="phone-body">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
           <div class="wf-logo" style="font-size:18px; padding:0;">Sound<span>Check</span></div>
-          <div style="font-size:12px; background:#f5f0ff; padding:4px 10px; border-radius:12px; font-weight:600; color:#7c3aed;">+2 credits earned</div>
+          <div style="font-size:10px; background:#f5f0ff; padding:4px 10px; border-radius:12px; font-weight:600; color:#7c3aed;">&#9733; 12 credits</div>
         </div>
 
-        <div class="tab-bar" style="margin-bottom:16px;">
-          <div class="tab-item active">Rate</div>
-          <div class="tab-item">My Queue (3)</div>
-          <div class="tab-item">History</div>
+        <!-- Earn progress bar -->
+        <div style="background:#fffbeb; border-radius:10px; padding:8px 12px; margin-bottom:10px; display:flex; align-items:center; gap:8px;">
+          <div style="font-size:11px; font-weight:600; color:#b45309; white-space:nowrap;">4/5 rated</div>
+          <div style="flex:1; height:6px; background:#fde68a; border-radius:3px; overflow:hidden;">
+            <div style="width:80%; height:100%; background:#f59e0b; border-radius:3px;"></div>
+          </div>
+          <div style="font-size:10px; color:#92400e; font-weight:700; white-space:nowrap;">+1 credit soon!</div>
         </div>
 
-        <div style="text-align:center; margin:8px 0;">
+        <div style="text-align:center; margin:4px 0;">
           <div style="font-size:11px; color:#aaa; font-weight:600; text-transform:uppercase; letter-spacing:1px;">TIKTOK / REELS CONTEXT</div>
           <div style="font-size:12px; color:#bbb; margin-top:2px;">Track 4 of 10</div>
         </div>
@@ -377,25 +437,56 @@
 
         <!-- Rating Sliders -->
         <div style="margin:8px 0;">
-          <div class="rating-row">
-            <div class="rating-label">&#9889; Hook</div>
-            <div class="rating-track"><div class="rating-fill" style="width:70%;"></div></div>
-            <div class="rating-value">7</div>
+          <div class="rating-card">
+            <div class="rating-card-header">
+              <div class="rating-card-label">&#9889; Hook</div>
+              <div class="rating-card-value">7</div>
+            </div>
+            <div class="rating-card-desc">Did this grab your attention in the first 3 seconds?</div>
+            <div class="rating-slider-wrap">
+              <div class="rating-slider-track"><div class="rating-slider-fill" style="width:70%;"></div></div>
+              <div class="rating-slider-thumb" style="left:70%;"></div>
+            </div>
+            <div class="rating-slider-labels"><span>1 — Skipped</span><span>10 — Instant replay</span></div>
           </div>
-          <div class="rating-row">
-            <div class="rating-label">&#128257; Stickiness</div>
-            <div class="rating-track"><div class="rating-fill" style="width:85%;"></div></div>
-            <div class="rating-value">8.5</div>
+
+          <div class="rating-card">
+            <div class="rating-card-header">
+              <div class="rating-card-label">&#128257; Stickiness</div>
+              <div class="rating-card-value">8.5</div>
+            </div>
+            <div class="rating-card-desc">Is this stuck in your head after one listen?</div>
+            <div class="rating-slider-wrap">
+              <div class="rating-slider-track"><div class="rating-slider-fill" style="width:85%;"></div></div>
+              <div class="rating-slider-thumb" style="left:85%;"></div>
+            </div>
+            <div class="rating-slider-labels"><span>1 — Forgettable</span><span>10 — Earworm</span></div>
           </div>
-          <div class="rating-row">
-            <div class="rating-label">&#128131; Moveability</div>
-            <div class="rating-track"><div class="rating-fill" style="width:40%;"></div></div>
-            <div class="rating-value">4</div>
+
+          <div class="rating-card">
+            <div class="rating-card-header">
+              <div class="rating-card-label">&#128131; Moveability</div>
+              <div class="rating-card-value">4</div>
+            </div>
+            <div class="rating-card-desc">Could you imagine a trend, dance, or meme to this?</div>
+            <div class="rating-slider-wrap">
+              <div class="rating-slider-track"><div class="rating-slider-fill" style="width:40%;"></div></div>
+              <div class="rating-slider-thumb" style="left:40%;"></div>
+            </div>
+            <div class="rating-slider-labels"><span>1 — Not really</span><span>10 — Already moving</span></div>
           </div>
-          <div class="rating-row">
-            <div class="rating-label">&#10024; Uniqueness</div>
-            <div class="rating-track"><div class="rating-fill" style="width:60%;"></div></div>
-            <div class="rating-value">6</div>
+
+          <div class="rating-card">
+            <div class="rating-card-header">
+              <div class="rating-card-label">&#10024; Uniqueness</div>
+              <div class="rating-card-value">6</div>
+            </div>
+            <div class="rating-card-desc">Does this stand out from what you've been hearing?</div>
+            <div class="rating-slider-wrap">
+              <div class="rating-slider-track"><div class="rating-slider-fill" style="width:60%;"></div></div>
+              <div class="rating-slider-thumb" style="left:60%;"></div>
+            </div>
+            <div class="rating-slider-labels"><span>1 — Sounds generic</span><span>10 — Never heard this</span></div>
           </div>
         </div>
 
@@ -430,7 +521,10 @@
       <div class="phone-body" style="gap:4px;">
         <div style="display:flex; justify-content:space-between; align-items:center;">
           <div style="font-size:14px; font-weight:700;">&#8592; Results</div>
-          <div style="font-size:12px; color:#888;">48/50 votes in</div>
+          <div style="display:flex; gap:6px; align-items:center;">
+            <div style="font-size:12px; color:#888;">48/50 votes in</div>
+            <button style="background:none; border:1px solid #e8e8e8; border-radius:6px; padding:2px 6px; font-size:10px; color:#ef4444; cursor:pointer;" title="Delete this track">&#128465;</button>
+          </div>
         </div>
 
         <div style="text-align:center; margin:6px 0;">
@@ -505,7 +599,20 @@
         </div>
 
         <button class="wf-btn" style="margin-top:12px;">&#128190; Download Full Report</button>
-        <button class="wf-btn accent">&#9878; A/B Test Another Mix</button>
+
+        <!-- Share link -->
+        <div style="border:2px solid #e8e8e8; border-radius:12px; padding:12px; margin-top:8px;">
+          <div style="font-size:12px; font-weight:700; margin-bottom:8px;">&#128279; Share Results</div>
+          <div style="display:flex; gap:6px; align-items:center;">
+            <div style="flex:1; background:#f5f5f5; border:1px solid #e0e0e0; border-radius:8px; padding:8px 10px; font-size:11px; color:#888; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;">soundcheck.io/r/xK9mT2</div>
+            <button style="padding:8px 12px; background:#111; color:#fff; border:none; border-radius:8px; font-size:11px; font-weight:600; cursor:pointer; white-space:nowrap;">Copy</button>
+          </div>
+          <div style="display:flex; gap:6px; margin-top:8px;">
+            <button style="flex:1; padding:6px; border:1px solid #e0e0e0; border-radius:8px; font-size:11px; font-weight:600; background:#fff; cursor:pointer;">&#120143; Post</button>
+            <button style="flex:1; padding:6px; border:1px solid #e0e0e0; border-radius:8px; font-size:11px; font-weight:600; background:#fff; cursor:pointer;">&#128172; Message</button>
+            <button style="flex:1; padding:6px; border:1px solid #e0e0e0; border-radius:8px; font-size:11px; font-weight:600; background:#fff; cursor:pointer;">&#9993; Email</button>
+          </div>
+        </div>
 
         <div style="flex:1;"></div>
         <div class="bottom-nav">
@@ -520,100 +627,145 @@
   </div>
 </div>
 
-<!-- ==================== SCREEN 6: A/B COMPARE ==================== -->
-<div class="screen" id="screen-compare">
+
+<!-- ==================== SCREEN 6: PROFILE ==================== -->
+<div class="screen" id="screen-profile">
   <div class="screen-label">
-    <h2>A/B Test View</h2>
-    <p>Compare two mixes side by side — a killer Pro feature</p>
+    <h2>Profile Page</h2>
+    <p>Credits, uploaded tracks, rating history, settings</p>
   </div>
   <div class="phone">
     <div class="phone-notch"></div>
     <div class="phone-body">
-      <div style="display:flex; justify-content:space-between; align-items:center;">
-        <div style="font-size:14px; font-weight:700;">&#8592; A/B Comparison</div>
-        <div style="font-size:10px; background:#f5f0ff; color:#7c3aed; padding:3px 8px; border-radius:8px; font-weight:600;">PRO</div>
+      <div class="wf-logo">Sound<span>Check</span> &#9835;</div>
+
+      <!-- Profile header -->
+      <div style="display:flex; align-items:center; gap:14px; margin:8px 0 16px;">
+        <div style="width:56px; height:56px; border-radius:50%; background:linear-gradient(135deg, #7c3aed, #a78bfa); display:flex; align-items:center; justify-content:center; font-size:22px; color:#fff; font-weight:800; flex-shrink:0;">JM</div>
+        <div style="flex:1;">
+          <div style="font-size:16px; font-weight:800;">Jordan Mitchell</div>
+          <div style="font-size:11px; color:#888;">@jordanmakes</div>
+          <div style="font-size:10px; color:#aaa; margin-top:2px;">Member since Jan 2026</div>
+        </div>
+        <button style="padding:6px 12px; border:1px solid #e0e0e0; border-radius:8px; font-size:11px; font-weight:600; background:#fff; cursor:pointer;">&#9998; Edit</button>
       </div>
 
-      <div style="text-align:center; margin:12px 0 8px;">
-        <div style="font-size:15px; font-weight:700;">Midnight Highway</div>
-        <div style="font-size:11px; color:#888;">TikTok / Reels — 50 votes each</div>
-      </div>
-
-      <!-- Comparison header -->
-      <div style="display:flex; gap:8px; margin:8px 0; text-align:center;">
-        <div style="flex:1; background:#f0fdf4; border-radius:10px; padding:10px;">
-          <div style="font-size:10px; color:#888; font-weight:600;">VERSION A</div>
-          <div style="font-size:11px; font-weight:700; margin-top:2px;">Original Mix</div>
-          <div style="font-size:28px; font-weight:800; color:#22c55e; margin-top:4px;">8.2</div>
-          <div style="font-size:10px; color:#22c55e; font-weight:700;">&#9650; WINNER</div>
+      <!-- Credits & Stats -->
+      <div style="display:flex; gap:8px; margin-bottom:12px;">
+        <div style="flex:1; background:linear-gradient(135deg, #f5f0ff, #ede9fe); border-radius:12px; padding:14px; text-align:center;">
+          <div style="font-size:28px; font-weight:800; color:#7c3aed;">24</div>
+          <div style="font-size:10px; font-weight:600; color:#7c3aed;">Credits</div>
         </div>
-        <div style="display:flex; align-items:center; font-size:12px; font-weight:800; color:#ccc;">VS</div>
-        <div style="flex:1; background:#fafafa; border-radius:10px; padding:10px;">
-          <div style="font-size:10px; color:#888; font-weight:600;">VERSION B</div>
-          <div style="font-size:11px; font-weight:700; margin-top:2px;">Alt Intro Mix</div>
-          <div style="font-size:28px; font-weight:800; color:#666; margin-top:4px;">7.4</div>
+        <div style="flex:1; background:#fafafa; border:1px solid #e8e8e8; border-radius:12px; padding:14px; text-align:center;">
+          <div style="font-size:28px; font-weight:800;">7</div>
+          <div style="font-size:10px; font-weight:600; color:#888;">Tracks Uploaded</div>
         </div>
-      </div>
-
-      <!-- Dimension comparison -->
-      <div style="font-size:12px; font-weight:700; margin:12px 0 6px;">Head-to-Head</div>
-
-      <div style="margin:4px 0;">
-        <div style="font-size:11px; font-weight:600; margin-bottom:4px;">&#9889; Hook</div>
-        <div style="display:flex; gap:4px; height:20px;">
-          <div style="flex:91; background:#22c55e; border-radius:4px 0 0 4px; display:flex; align-items:center; justify-content:center; font-size:10px; color:#fff; font-weight:700;">A: 9.1</div>
-          <div style="flex:68; background:#e8e8e8; border-radius:0 4px 4px 0; display:flex; align-items:center; justify-content:center; font-size:10px; color:#888; font-weight:700;">B: 6.8</div>
-        </div>
-      </div>
-      <div style="margin:4px 0;">
-        <div style="font-size:11px; font-weight:600; margin-bottom:4px;">&#128257; Stickiness</div>
-        <div style="display:flex; gap:4px; height:20px;">
-          <div style="flex:84; background:#22c55e; border-radius:4px 0 0 4px; display:flex; align-items:center; justify-content:center; font-size:10px; color:#fff; font-weight:700;">A: 8.4</div>
-          <div style="flex:82; background:#e8e8e8; border-radius:0 4px 4px 0; display:flex; align-items:center; justify-content:center; font-size:10px; color:#888; font-weight:700;">B: 8.2</div>
-        </div>
-      </div>
-      <div style="margin:4px 0;">
-        <div style="font-size:11px; font-weight:600; margin-bottom:4px;">&#128131; Moveability</div>
-        <div style="display:flex; gap:4px; height:20px;">
-          <div style="flex:72; background:#e8e8e8; border-radius:4px 0 0 4px; display:flex; align-items:center; justify-content:center; font-size:10px; color:#888; font-weight:700;">A: 7.2</div>
-          <div style="flex:79; background:#3b82f6; border-radius:0 4px 4px 0; display:flex; align-items:center; justify-content:center; font-size:10px; color:#fff; font-weight:700;">B: 7.9</div>
-        </div>
-      </div>
-      <div style="margin:4px 0;">
-        <div style="font-size:11px; font-weight:600; margin-bottom:4px;">&#10024; Uniqueness</div>
-        <div style="display:flex; gap:4px; height:20px;">
-          <div style="flex:78; background:#22c55e; border-radius:4px 0 0 4px; display:flex; align-items:center; justify-content:center; font-size:10px; color:#fff; font-weight:700;">A: 7.8</div>
-          <div style="flex:71; background:#e8e8e8; border-radius:0 4px 4px 0; display:flex; align-items:center; justify-content:center; font-size:10px; color:#888; font-weight:700;">B: 7.1</div>
+        <div style="flex:1; background:#fafafa; border:1px solid #e8e8e8; border-radius:12px; padding:14px; text-align:center;">
+          <div style="font-size:28px; font-weight:800;">143</div>
+          <div style="font-size:10px; font-weight:600; color:#888;">Tracks Rated</div>
         </div>
       </div>
 
-      <hr class="wf-divider">
-
-      <!-- AI Insight -->
-      <div class="insight-card">
-        <div class="insight-title">&#129302; AI ANALYSIS</div>
-        <div class="insight-body">Version A's intro hook is significantly stronger (+2.3 pts). Version B's alt intro hurt first-impression impact but slightly improved moveability. <strong>Recommendation: Go with A</strong>, but consider B's rhythmic elements for a future remix.</div>
+      <!-- Earn progress -->
+      <div style="background:#fffbeb; border:1px solid #fde68a; border-radius:10px; padding:10px 12px; margin-bottom:14px; display:flex; align-items:center; gap:8px;">
+        <div style="font-size:11px; font-weight:600; color:#b45309; white-space:nowrap;">2/5 rated</div>
+        <div style="flex:1; height:6px; background:#fde68a; border-radius:3px; overflow:hidden;">
+          <div style="width:40%; height:100%; background:#f59e0b; border-radius:3px;"></div>
+        </div>
+        <div style="font-size:10px; color:#92400e; font-weight:700; white-space:nowrap;">3 more for +1 credit</div>
       </div>
 
-      <!-- Voter comments -->
-      <div style="font-size:12px; font-weight:700; margin:8px 0 4px;">&#128172; Voter Highlights</div>
-      <div style="background:#fafafa; border-radius:10px; padding:10px; margin:4px 0;">
-        <div style="font-size:11px; line-height:1.5;">
-          <div style="margin:4px 0;"><span style="color:#22c55e; font-weight:700;">A:</span> "That synth hit at 0:02 is insane, instant replay"</div>
-          <div style="margin:4px 0;"><span style="color:#22c55e; font-weight:700;">A:</span> "Would def use this in a transition video"</div>
-          <div style="margin:4px 0;"><span style="color:#3b82f6; font-weight:700;">B:</span> "The groove is better but took too long to hit"</div>
+      <hr class="wf-divider" style="margin:8px 0;">
+
+      <!-- My Tracks -->
+      <div style="font-size:14px; font-weight:700; margin-bottom:10px;">My Tracks</div>
+
+      <!-- Track item 1 -->
+      <div style="border:2px solid #e8e8e8; border-radius:12px; padding:12px; margin-bottom:8px;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div style="font-size:13px; font-weight:700;">Midnight Highway</div>
+            <div style="font-size:10px; color:#888;">TikTok / Reels &middot; 48/50 votes</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:20px; font-weight:800; color:#7c3aed;">8.2</div>
+            <span style="font-size:9px; background:#22c55e; color:#fff; padding:2px 6px; border-radius:6px; font-weight:600;">Top 15%</span>
+          </div>
+        </div>
+        <div style="display:flex; gap:6px; margin-top:8px;">
+          <button style="flex:1; padding:5px; border:1px solid #e0e0e0; border-radius:6px; font-size:10px; font-weight:600; background:#fff; cursor:pointer;">&#128200; View</button>
+          <button style="flex:1; padding:5px; border:1px solid #e0e0e0; border-radius:6px; font-size:10px; font-weight:600; background:#fff; cursor:pointer;">&#128279; Share</button>
+          <button style="padding:5px 8px; border:1px solid #fecaca; border-radius:6px; font-size:10px; color:#ef4444; background:#fff; cursor:pointer;">&#128465;</button>
         </div>
       </div>
 
-      <button class="wf-btn accent" style="margin-top:12px;">&#128190; Export Comparison Report</button>
+      <!-- Track item 2 -->
+      <div style="border:2px solid #e8e8e8; border-radius:12px; padding:12px; margin-bottom:8px;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div style="font-size:13px; font-weight:700;">Neon Dreams</div>
+            <div style="font-size:10px; color:#888;">Spotify Discover &middot; 50/50 votes</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:20px; font-weight:800; color:#7c3aed;">6.9</div>
+            <span style="font-size:9px; background:#eab308; color:#fff; padding:2px 6px; border-radius:6px; font-weight:600;">Top 42%</span>
+          </div>
+        </div>
+        <div style="display:flex; gap:6px; margin-top:8px;">
+          <button style="flex:1; padding:5px; border:1px solid #e0e0e0; border-radius:6px; font-size:10px; font-weight:600; background:#fff; cursor:pointer;">&#128200; View</button>
+          <button style="flex:1; padding:5px; border:1px solid #e0e0e0; border-radius:6px; font-size:10px; font-weight:600; background:#fff; cursor:pointer;">&#128279; Share</button>
+          <button style="padding:5px 8px; border:1px solid #fecaca; border-radius:6px; font-size:10px; color:#ef4444; background:#fff; cursor:pointer;">&#128465;</button>
+        </div>
+      </div>
+
+      <!-- Track item 3 - in progress -->
+      <div style="border:2px dashed #c4b5fd; border-radius:12px; padding:12px; margin-bottom:8px; background:#faf8ff;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div style="font-size:13px; font-weight:700;">Late Arrival</div>
+            <div style="font-size:10px; color:#888;">TikTok / Reels &middot; 12/50 votes</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:11px; font-weight:700; color:#7c3aed;">Collecting...</div>
+            <div style="width:48px; height:4px; background:#e8e8e8; border-radius:2px; margin-top:4px; overflow:hidden;">
+              <div style="width:24%; height:100%; background:#7c3aed; border-radius:2px;"></div>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex; gap:6px; margin-top:8px;">
+          <button style="flex:1; padding:5px; border:1px solid #e0e0e0; border-radius:6px; font-size:10px; font-weight:600; background:#fff; cursor:pointer; color:#aaa;">&#128200; Pending</button>
+          <button style="padding:5px 8px; border:1px solid #fecaca; border-radius:6px; font-size:10px; color:#ef4444; background:#fff; cursor:pointer;">&#128465;</button>
+        </div>
+      </div>
+
+      <!-- Pagination -->
+      <div style="display:flex; justify-content:center; align-items:center; gap:6px; margin:12px 0;">
+        <button style="width:32px; height:32px; border:1px solid #e0e0e0; border-radius:8px; background:#fff; font-size:12px; cursor:pointer; color:#aaa;">&#8249;</button>
+        <button style="width:32px; height:32px; border:2px solid #7c3aed; border-radius:8px; background:#7c3aed; font-size:12px; color:#fff; font-weight:700; cursor:pointer;">1</button>
+        <button style="width:32px; height:32px; border:1px solid #e0e0e0; border-radius:8px; background:#fff; font-size:12px; cursor:pointer; color:#555; font-weight:600;">2</button>
+        <button style="width:32px; height:32px; border:1px solid #e0e0e0; border-radius:8px; background:#fff; font-size:12px; cursor:pointer; color:#555; font-weight:600;">3</button>
+        <button style="width:32px; height:32px; border:1px solid #e0e0e0; border-radius:8px; background:#fff; font-size:12px; cursor:pointer; color:#555;">&#8250;</button>
+      </div>
+      <div style="text-align:center; font-size:10px; color:#aaa;">Showing 1-3 of 7 tracks</div>
+
+      <hr class="wf-divider" style="margin:12px 0;">
+
+      <!-- Settings links -->
+      <div style="font-size:14px; font-weight:700; margin-bottom:8px;">Settings</div>
+      <div style="border:2px solid #e8e8e8; border-radius:12px; overflow:hidden;">
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 14px; cursor:pointer;">
+          <div style="font-size:13px; font-weight:600; color:#ef4444;">&#9211; Log out</div>
+          <div style="font-size:12px; color:#ccc;">&#8250;</div>
+        </div>
+      </div>
 
       <div style="flex:1;"></div>
       <div class="bottom-nav">
         <div class="bottom-nav-item"><div class="bottom-nav-icon">&#8962;</div>Home</div>
         <div class="bottom-nav-item"><div class="bottom-nav-icon">&#10514;</div>Upload</div>
         <div class="bottom-nav-item"><div class="bottom-nav-icon">&#9654;</div>Rate</div>
-        <div class="bottom-nav-item active"><div class="bottom-nav-icon">&#128200;</div>Results</div>
-        <div class="bottom-nav-item"><div class="bottom-nav-icon">&#9881;</div>Profile</div>
+        <div class="bottom-nav-item"><div class="bottom-nav-icon">&#128200;</div>Results</div>
+        <div class="bottom-nav-item active"><div class="bottom-nav-icon">&#9881;</div>Profile</div>
       </div>
     </div>
   </div>
