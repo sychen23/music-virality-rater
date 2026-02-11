@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useCallback, useContext, useState } from "react"
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react"
 import { useSession } from "@/lib/auth-client"
 
 type Session = ReturnType<typeof useSession>["data"]
@@ -21,19 +21,39 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { data: session, isPending } = useSession()
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
+  const pendingActionRef = useRef<(() => void) | null>(null)
 
   const openAuthModal = useCallback(() => setIsAuthModalOpen(true), [])
   const closeAuthModal = useCallback(() => setIsAuthModalOpen(false), [])
 
+  // Execute deferred action once session resolves
+  useEffect(() => {
+    if (!isPending && pendingActionRef.current) {
+      const action = pendingActionRef.current
+      pendingActionRef.current = null
+      if (session?.user) {
+        action()
+      } else {
+        // Schedule modal open outside the effect to avoid cascading renders
+        requestAnimationFrame(() => setIsAuthModalOpen(true))
+      }
+    }
+  }, [isPending, session])
+
   const requireAuth = useCallback(
     (action: () => void) => {
+      if (isPending) {
+        // Session still loading — defer until resolved
+        pendingActionRef.current = action
+        return
+      }
       if (session?.user) {
         action()
       } else {
         setIsAuthModalOpen(true)
       }
     },
-    [session]
+    [session, isPending]
   )
 
   return (
