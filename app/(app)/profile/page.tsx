@@ -16,7 +16,8 @@ export default async function ProfilePage({
   if (!session) redirect("/login");
 
   const { page: pageStr } = await searchParams;
-  const page = Math.max(1, parseInt(pageStr || "1", 10));
+  const parsed = parseInt(pageStr || "1", 10);
+  const page = Number.isNaN(parsed) ? 1 : Math.max(1, parsed);
 
   await ensureProfile(session.user.id, session.user.name);
   const profile = await getProfile(session.user.id);

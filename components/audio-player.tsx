@@ -78,7 +78,7 @@ export function AudioPlayer({
       if (snippetStart !== undefined && audio.currentTime < snippetStart) {
         audio.currentTime = snippetStart;
       }
-      if (snippetEnd && audio.currentTime >= snippetEnd) {
+      if (snippetEnd !== undefined && audio.currentTime >= snippetEnd) {
         audio.currentTime = effectiveStart;
       }
       audio.play();

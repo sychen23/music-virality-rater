@@ -54,7 +54,7 @@ export async function submitForRating(data: {
       });
     }
 
-    // Update track (only if owned by the authenticated user)
+    // Update track (only if owned by the authenticated user AND still a draft)
     const [updatedTrack] = await tx
       .update(tracks)
       .set({
@@ -62,11 +62,17 @@ export async function submitForRating(data: {
         votesRequested,
         status: "collecting",
       })
-      .where(and(eq(tracks.id, data.trackId), eq(tracks.userId, userId)))
+      .where(
+        and(
+          eq(tracks.id, data.trackId),
+          eq(tracks.userId, userId),
+          eq(tracks.status, "draft"),
+        )
+      )
       .returning({ id: tracks.id });
 
     if (!updatedTrack) {
-      throw new Error("Track not found");
+      throw new Error("Track not found or already submitted");
     }
   });
 

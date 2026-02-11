@@ -30,23 +30,8 @@ export async function createTrack(data: {
     throw new Error("Invalid audio filename format");
   }
 
-  // 2. Ownership check: verify the file was uploaded by this user and hasn't
-  //    already been consumed by another track.
-  const uploadRecord = await db.query.uploads.findFirst({
-    where: and(
-      eq(uploads.filename, data.audioFilename),
-      eq(uploads.userId, userId),
-      eq(uploads.consumed, false),
-    ),
-  });
-
-  if (!uploadRecord) {
-    throw new Error(
-      "Audio file not found. Please upload the file before creating a track.",
-    );
-  }
-
-  // Ensure profile exists
+  // Ensure profile exists (outside transaction since it uses onConflictDoNothing
+  // and has no ordering dependency with the transactional block below)
   await db
     .insert(profiles)
     .values({
@@ -58,32 +43,52 @@ export async function createTrack(data: {
 
   const shareToken = randomBytes(8).toString("hex");
 
-  const [track] = await db
-    .insert(tracks)
-    .values({
-      userId,
-      title: data.title,
-      audioFilename: data.audioFilename,
-      duration: data.duration,
-      genreTags: data.genreTags,
-      snippetStart: data.snippetStart,
-      snippetEnd: data.snippetEnd,
-      shareToken,
-      status: "draft",
-    })
-    .returning();
+  // Wrap ownership check, track insert, consumed flag, and counter update in a
+  // transaction so concurrent calls with the same filename can't both succeed.
+  const track = await db.transaction(async (tx) => {
+    // 2. Atomically claim the upload: UPDATE ... WHERE consumed = false ensures
+    //    only one concurrent caller can succeed (the other matches 0 rows).
+    const [claimed] = await tx
+      .update(uploads)
+      .set({ consumed: true })
+      .where(
+        and(
+          eq(uploads.filename, data.audioFilename),
+          eq(uploads.userId, userId),
+          eq(uploads.consumed, false),
+        )
+      )
+      .returning({ id: uploads.id });
 
-  // Mark upload as consumed so it can't be reused for another track
-  await db
-    .update(uploads)
-    .set({ consumed: true })
-    .where(eq(uploads.id, uploadRecord.id));
+    if (!claimed) {
+      throw new Error(
+        "Audio file not found. Please upload the file before creating a track.",
+      );
+    }
 
-  // Increment tracks_uploaded
-  await db
-    .update(profiles)
-    .set({ tracksUploaded: sql`${profiles.tracksUploaded} + 1` })
-    .where(eq(profiles.id, userId));
+    const [newTrack] = await tx
+      .insert(tracks)
+      .values({
+        userId,
+        title: data.title,
+        audioFilename: data.audioFilename,
+        duration: data.duration,
+        genreTags: data.genreTags,
+        snippetStart: data.snippetStart,
+        snippetEnd: data.snippetEnd,
+        shareToken,
+        status: "draft",
+      })
+      .returning();
+
+    // Increment tracks_uploaded
+    await tx
+      .update(profiles)
+      .set({ tracksUploaded: sql`${profiles.tracksUploaded} + 1` })
+      .where(eq(profiles.id, userId));
+
+    return newTrack;
+  });
 
   return track;
 }
