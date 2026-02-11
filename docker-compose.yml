@@ -1,0 +1,15 @@
+services:
+  db:
+    image: postgres:alpine
+    restart: unless-stopped
+    ports:
+      - "5434:5432"
+    environment:
+      POSTGRES_USER: soundcheck
+      POSTGRES_PASSWORD: doublesoundcheck
+      POSTGRES_DB: soundcheck
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

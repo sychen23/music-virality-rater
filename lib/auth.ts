@@ -1,14 +1,15 @@
 import { betterAuth } from "better-auth";
-import { Pool } from "pg";
+import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { nextCookies } from "better-auth/next-js";
+import { db } from "@/lib/db";
 
 export const auth = betterAuth({
-    database: new Pool({
-        baseURL: process.env.BETTER_AUTH_URL, 
-    }),
-    socialProviders: {
-        google: { 
-            clientId: process.env.GOOGLE_CLIENT_ID as string, 
-            clientSecret: process.env.GOOGLE_CLIENT_SECRET as string, 
-        }, 
+  database: drizzleAdapter(db, { provider: "pg" }),
+  socialProviders: {
+    google: {
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
     },
-})
+  },
+  plugins: [nextCookies()],
+});
