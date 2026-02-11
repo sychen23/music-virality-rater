@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
-import { writeFile, mkdir } from "fs/promises";
-import { join, resolve, sep } from "path";
+import { put } from "@vercel/blob";
 import { db } from "@/lib/db";
 import { uploads } from "@/lib/db/schema";
 import { ensureProfile } from "@/lib/queries/profiles";
@@ -58,35 +57,29 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid file type" }, { status: 400 });
   }
 
-  const uploadDir = join(process.cwd(), "public", "uploads");
-  await mkdir(uploadDir, { recursive: true });
-
   const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-  const filepath = resolve(uploadDir, filename);
 
-  // Guard against path traversal: ensure resolved path is inside upload directory
-  const resolvedDir = resolve(uploadDir) + sep;
-  if (!filepath.startsWith(resolvedDir)) {
-    return NextResponse.json({ error: "Invalid filename" }, { status: 400 });
-  }
-
-  const buffer = Buffer.from(await file.arrayBuffer());
-  await writeFile(filepath, buffer);
+  // Upload to Vercel Blob storage
+  const blob = await put(`uploads/${filename}`, file, {
+    access: "public",
+    contentType: file.type,
+  });
 
   // Ensure profile exists before inserting (uploads.userId references profiles.id)
   await ensureProfile(session.user.id, session.user.name);
 
-  // Record upload in DB so createTrack can verify ownership
+  // Record upload in DB so createTrack can verify ownership.
+  // filename stores the full Vercel Blob URL for later retrieval/deletion.
   await db.insert(uploads).values({
     userId: session.user.id,
-    filename,
+    filename: blob.url,
     originalName: file.name,
     size: file.size,
   });
 
   return NextResponse.json({
-    filename,
-    url: `/uploads/${filename}`,
+    filename: blob.url,
+    url: blob.url,
     size: file.size,
     originalName: file.name,
   });
