@@ -74,9 +74,13 @@ export function ResultsView({
             Overall Virality Score
           </p>
           <p className="mt-1 text-5xl font-bold text-primary">{score.toFixed(1)}</p>
-          {track.percentile !== null && (
+          {track.percentile !== null ? (
             <p className="mt-2 text-sm font-medium">
               TOP {100 - track.percentile}% of tracks tested
+            </p>
+          ) : (
+            <p className="mt-2 text-sm text-muted-foreground">
+              Percentile ranking available after more tracks are tested
             </p>
           )}
         </div>

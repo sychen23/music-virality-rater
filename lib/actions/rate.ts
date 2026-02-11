@@ -121,8 +121,10 @@ export async function submitRating(data: {
     };
   });
 
-  // If track reached vote goal, compute scores (outside transaction
-  // since this is a read-heavy idempotent operation).
+  // If track reached vote goal, compute scores. Runs outside the main
+  // transaction to keep that transaction short. computeTrackScores uses
+  // its own transaction with an advisory lock to prevent concurrent
+  // callers from racing (e.g. two final ratings arriving simultaneously).
   // Guard: votesRequested must be > 0 to avoid triggering on draft tracks
   // where votesRequested defaults to 0 (defense-in-depth alongside the
   // status === 'collecting' check above).
@@ -140,58 +142,96 @@ export async function submitRating(data: {
   };
 }
 
+/**
+ * Derive a stable 32-bit integer from a UUID string for use as a
+ * PostgreSQL advisory lock key. Uses FNV-1a for speed and simplicity.
+ */
+function hashTrackId(trackId: string): number {
+  let hash = 0x811c9dc5; // FNV offset basis
+  for (let i = 0; i < trackId.length; i++) {
+    hash ^= trackId.charCodeAt(i);
+    hash = (hash * 0x01000193) | 0; // FNV prime, keep 32-bit
+  }
+  return hash;
+}
+
 async function computeTrackScores(trackId: string) {
-  const trackRatings = await db.query.ratings.findMany({
-    where: eq(ratings.trackId, trackId),
-  });
+  // Wrap in a transaction so the advisory lock is held on a single
+  // connection for the duration, then auto-released on commit.
+  // This prevents two concurrent final-rating requests from both
+  // computing and overwriting scores for the same track.
+  await db.transaction(async (tx) => {
+    // Acquire a transaction-scoped advisory lock keyed on the track.
+    // pg_advisory_xact_lock blocks until the lock is available and
+    // releases automatically when the transaction ends.
+    await tx.execute(
+      sql`SELECT pg_advisory_xact_lock(${hashTrackId(trackId)})`
+    );
 
-  if (trackRatings.length === 0) return;
+    // Re-check status: if another caller already completed this track
+    // while we waited for the lock, there's nothing left to do.
+    const current = await tx.query.tracks.findFirst({
+      where: eq(tracks.id, trackId),
+      columns: { status: true },
+    });
+    if (current?.status === "complete") return;
 
-  const avg = (values: number[]) =>
-    values.reduce((a, b) => a + b, 0) / values.length;
-
-  const d1 = avg(trackRatings.map((r) => r.dimension1));
-  const d2 = avg(trackRatings.map((r) => r.dimension2));
-  const d3 = avg(trackRatings.map((r) => r.dimension3));
-  const d4 = avg(trackRatings.map((r) => r.dimension4));
-
-  const overall = (d1 + d2 + d3 + d4) / 4;
-
-  // Get track to find context for percentile
-  const track = await db.query.tracks.findFirst({
-    where: eq(tracks.id, trackId),
-  });
-
-  let percentile = 50;
-  if (track?.contextId) {
-    // Fetch all already-completed tracks in the same context
-    const allCompleted = await db.query.tracks.findMany({
-      where: and(
-        eq(tracks.status, "complete"),
-        eq(tracks.contextId, track.contextId)
-      ),
-      columns: { overallScore: true },
+    const trackRatings = await tx.query.ratings.findMany({
+      where: eq(ratings.trackId, trackId),
     });
 
-    const scores = allCompleted
-      .map((t) => t.overallScore)
-      .filter((s): s is number => s !== null);
+    if (trackRatings.length === 0) return;
 
-    // Include the current track's score in the comparison set so the
-    // percentile is computed against all N+1 tracks (not just the N
-    // that were already marked "complete").
-    scores.push(overall);
+    const avg = (values: number[]) =>
+      values.reduce((a, b) => a + b, 0) / values.length;
 
-    const below = scores.filter((s) => s < overall).length;
-    percentile = Math.round((below / scores.length) * 100);
-  }
+    const d1 = avg(trackRatings.map((r) => r.dimension1));
+    const d2 = avg(trackRatings.map((r) => r.dimension2));
+    const d3 = avg(trackRatings.map((r) => r.dimension3));
+    const d4 = avg(trackRatings.map((r) => r.dimension4));
 
-  await db
-    .update(tracks)
-    .set({
-      status: "complete",
-      overallScore: Math.round(overall * 10) / 10,
-      percentile,
-    })
-    .where(eq(tracks.id, trackId));
+    const overall = (d1 + d2 + d3 + d4) / 4;
+
+    // Get track to find context for percentile
+    const track = await tx.query.tracks.findFirst({
+      where: eq(tracks.id, trackId),
+    });
+
+    let percentile: number | null = null;
+    if (track?.contextId) {
+      // Fetch all already-completed tracks in the same context
+      const allCompleted = await tx.query.tracks.findMany({
+        where: and(
+          eq(tracks.status, "complete"),
+          eq(tracks.contextId, track.contextId)
+        ),
+        columns: { overallScore: true },
+      });
+
+      const scores = allCompleted
+        .map((t) => t.overallScore)
+        .filter((s): s is number => s !== null);
+
+      // Include the current track's score in the comparison set so the
+      // percentile is computed against all N+1 tracks (not just the N
+      // that were already marked "complete").
+      scores.push(overall);
+
+      if (scores.length >= 2) {
+        // Only compute percentile when there are at least 2 tracks to
+        // compare against — a single track has no meaningful ranking.
+        const below = scores.filter((s) => s < overall).length;
+        percentile = Math.round((below / scores.length) * 100);
+      }
+    }
+
+    await tx
+      .update(tracks)
+      .set({
+        status: "complete",
+        overallScore: Math.round(overall * 10) / 10,
+        percentile,
+      })
+      .where(eq(tracks.id, trackId));
+  });
 }
