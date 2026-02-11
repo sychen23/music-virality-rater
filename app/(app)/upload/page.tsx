@@ -11,11 +11,13 @@ import { SnippetTrimmer } from "@/components/snippet-trimmer";
 import { GenreTagSelector } from "@/components/genre-tag-selector";
 import { createTrack } from "@/lib/actions/upload";
 import { evictCachedWaveform } from "@/lib/audio-context";
+import { useAuth } from "@/components/auth-provider";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { CloudUploadIcon, Delete02Icon } from "@hugeicons/core-free-icons";
 
 export default function UploadPage() {
   const router = useRouter();
+  const { requireAuth } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [file, setFile] = useState<File | null>(null);
@@ -101,30 +103,32 @@ export default function UploadPage() {
       e.preventDefault();
       setIsDragOver(false);
       const f = e.dataTransfer.files[0];
-      if (f) handleFile(f);
+      if (f) requireAuth(() => handleFile(f));
     },
-    [handleFile]
+    [handleFile, requireAuth]
   );
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!uploadedFilename || !title.trim() || !tosAccepted) return;
 
-    setSubmitting(true);
-    try {
-      const track = await createTrack({
-        title: title.trim(),
-        audioFilename: uploadedFilename,
-        duration,
-        genreTags,
-        snippetStart,
-        snippetEnd,
-      });
-      router.push(`/context?trackId=${track.id}`);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to save track");
-    } finally {
-      setSubmitting(false);
-    }
+    requireAuth(async () => {
+      setSubmitting(true);
+      try {
+        const track = await createTrack({
+          title: title.trim(),
+          audioFilename: uploadedFilename,
+          duration,
+          genreTags,
+          snippetStart,
+          snippetEnd,
+        });
+        router.push(`/context?trackId=${track.id}`);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Failed to save track");
+      } finally {
+        setSubmitting(false);
+      }
+    });
   };
 
   const handleClear = () => {
@@ -180,7 +184,7 @@ export default function UploadPage() {
             }}
             onDragLeave={() => setIsDragOver(false)}
             onDrop={handleDrop}
-            onClick={() => fileInputRef.current?.click()}
+            onClick={() => requireAuth(() => fileInputRef.current?.click())}
             className={`flex cursor-pointer flex-col items-center gap-3 rounded-xl border-2 border-dashed p-10 text-center transition-colors ${
               isDragOver
                 ? "border-primary bg-primary/5"
@@ -209,7 +213,7 @@ export default function UploadPage() {
             className="hidden"
             onChange={(e) => {
               const f = e.target.files?.[0];
-              if (f) handleFile(f);
+              if (f) requireAuth(() => handleFile(f));
             }}
           />
         </>

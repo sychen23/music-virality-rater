@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -9,10 +9,12 @@ import { VotePackageSelector } from "@/components/vote-package-selector";
 import { EarnProgressBar } from "@/components/earn-progress-bar";
 import { CONTEXTS, type Context } from "@/lib/constants/contexts";
 import { VOTE_PACKAGES } from "@/lib/constants/packages";
+import { useAuth } from "@/components/auth-provider";
 import { submitForRating, getUserProfileData } from "@/lib/actions/context";
 
-export default function ContextPage() {
+function ContextPageContent() {
   const router = useRouter();
+  const { requireAuth } = useAuth();
   const searchParams = useSearchParams();
   const trackId = searchParams.get("trackId");
 
@@ -38,25 +40,27 @@ export default function ContextPage() {
       });
   }, []);
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!trackId || !selectedContext) return;
 
-    setSubmitting(true);
-    try {
-      await submitForRating({
-        trackId,
-        contextId: selectedContext.id,
-        packageIndex: selectedPackageIndex,
-      });
-      toast.success("Track submitted for rating!");
-      router.push(`/results/${trackId}`);
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to submit"
-      );
-    } finally {
-      setSubmitting(false);
-    }
+    requireAuth(async () => {
+      setSubmitting(true);
+      try {
+        await submitForRating({
+          trackId,
+          contextId: selectedContext.id,
+          packageIndex: selectedPackageIndex,
+        });
+        toast.success("Track submitted for rating!");
+        router.push(`/results/${trackId}`);
+      } catch (err) {
+        toast.error(
+          err instanceof Error ? err.message : "Failed to submit"
+        );
+      } finally {
+        setSubmitting(false);
+      }
+    });
   };
 
   if (!trackId) {
@@ -141,5 +145,19 @@ export default function ContextPage() {
         {submitting ? "Submitting..." : "Submit for Rating"}
       </Button>
     </div>
+  );
+}
+
+export default function ContextPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-[50vh] items-center justify-center">
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      }
+    >
+      <ContextPageContent />
+    </Suspense>
   );
 }

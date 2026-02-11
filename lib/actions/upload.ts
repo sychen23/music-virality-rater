@@ -15,7 +15,7 @@ function isValidBlobUrl(url: string): boolean {
     return (
       parsed.protocol === "https:" &&
       parsed.hostname.endsWith(".public.blob.vercel-storage.com") &&
-      /\/uploads\/\d+-[a-z0-9]+\.(mp3|wav|m4a)$/.test(parsed.pathname)
+      /\/uploads\/\d+-[a-z0-9]+\.(mp3|wav|m4a)$/i.test(parsed.pathname)
     );
   } catch {
     return false;

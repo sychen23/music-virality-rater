@@ -1,10 +1,10 @@
-import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { getTrackById } from "@/lib/queries/tracks";
 import { getTrackRatings, computeDimensionAverages, generateInsights } from "@/lib/queries/ratings";
 import { getContextById } from "@/lib/constants/contexts";
 import { ResultsViewWrapper } from "./results-wrapper";
+import { SignInPrompt } from "@/components/sign-in-prompt";
 
 export default async function ResultsPage({
   params,
@@ -14,7 +14,15 @@ export default async function ResultsPage({
   const { trackId } = await params;
 
   const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) redirect("/");
+
+  if (!session) {
+    return (
+      <SignInPrompt
+        title="Sign in to view your results"
+        description="You need to be signed in to access your track results."
+      />
+    );
+  }
 
   const track = await getTrackById(trackId);
   if (!track || track.isDeleted || track.userId !== session.user.id) {

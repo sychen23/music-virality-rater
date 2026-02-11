@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
-import { put } from "@vercel/blob";
+import { del, put } from "@vercel/blob";
 import { db } from "@/lib/db";
 import { uploads } from "@/lib/db/schema";
 import { ensureProfile } from "@/lib/queries/profiles";
@@ -59,23 +59,37 @@ export async function POST(request: NextRequest) {
 
   const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
 
-  // Upload to Vercel Blob storage
+  // Upload to Vercel Blob storage, then persist the DB record.
+  // If the DB insert (or ensureProfile) fails after the blob is already
+  // uploaded, we delete the blob so it doesn't become permanently orphaned
+  // and accrue storage costs with no corresponding DB row.
   const blob = await put(`uploads/${filename}`, file, {
     access: "public",
     contentType: file.type,
+    addRandomSuffix: false,
   });
 
-  // Ensure profile exists before inserting (uploads.userId references profiles.id)
-  await ensureProfile(session.user.id, session.user.name);
+  try {
+    // Ensure profile exists before inserting (uploads.userId references profiles.id)
+    await ensureProfile(session.user.id, session.user.name);
 
-  // Record upload in DB so createTrack can verify ownership.
-  // filename stores the full Vercel Blob URL for later retrieval/deletion.
-  await db.insert(uploads).values({
-    userId: session.user.id,
-    filename: blob.url,
-    originalName: file.name,
-    size: file.size,
-  });
+    // Record upload in DB so createTrack can verify ownership.
+    // filename stores the full Vercel Blob URL for later retrieval/deletion.
+    await db.insert(uploads).values({
+      userId: session.user.id,
+      filename: blob.url,
+      originalName: file.name,
+      size: file.size,
+    });
+  } catch (error) {
+    // Best-effort cleanup: remove the blob that was already uploaded
+    try {
+      await del(blob.url);
+    } catch {
+      // Ignore deletion failures — the blob may already be gone
+    }
+    throw error;
+  }
 
   return NextResponse.json({
     filename: blob.url,

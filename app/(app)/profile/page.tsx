@@ -1,4 +1,3 @@
-import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { getProfile, getTracksByUser, ensureProfile } from "@/lib/queries/profiles";
@@ -6,6 +5,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { EarnProgressBar } from "@/components/earn-progress-bar";
 import { ProfileTracks } from "./profile-tracks";
 import { LogoutButton } from "./logout-button";
+import { SignInPrompt } from "@/components/sign-in-prompt";
 
 export default async function ProfilePage({
   searchParams,
@@ -13,7 +13,15 @@ export default async function ProfilePage({
   searchParams: Promise<{ page?: string }>;
 }) {
   const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) redirect("/");
+
+  if (!session) {
+    return (
+      <SignInPrompt
+        title="Your profile"
+        description="Sign in to see your stats, credits, and uploaded tracks."
+      />
+    );
+  }
 
   const { page: pageStr } = await searchParams;
   const parsed = parseInt(pageStr || "1", 10);
@@ -23,7 +31,13 @@ export default async function ProfilePage({
   const profile = await getProfile(session.user.id);
   const trackData = await getTracksByUser(session.user.id, page);
 
-  if (!profile) redirect("/");
+  if (!profile) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <p className="text-muted-foreground">Could not load profile.</p>
+      </div>
+    );
+  }
 
   const initials = (session.user.name || "U")
     .split(" ")
