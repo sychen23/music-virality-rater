@@ -88,7 +88,9 @@ export async function POST(request: NextRequest) {
     } catch {
       // Ignore deletion failures — the blob may already be gone
     }
-    throw error;
+    const message =
+      error instanceof Error ? error.message : "Failed to save upload";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 
   return NextResponse.json({

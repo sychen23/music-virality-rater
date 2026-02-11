@@ -42,32 +42,22 @@ export async function submitForRating(data: {
   const { votes: votesRequested, credits: creditsCost } = votePackage;
   const userId = session.user.id;
 
-  // Atomically deduct credits if cost > 0.
-  // WHERE credits >= cost acts as an atomic guard against double-spend:
-  // if a concurrent request already deducted, this UPDATE matches 0 rows.
+  // Verify the user has enough credits before touching anything, so we can
+  // fail fast with a clear message (the atomic deduction below would also
+  // catch this, but with a less descriptive error).
   if (creditsCost > 0) {
-    const [updated] = await db
-      .update(profiles)
-      .set({ credits: sql`${profiles.credits} - ${creditsCost}` })
-      .where(
-        and(eq(profiles.id, userId), gte(profiles.credits, creditsCost))
-      )
-      .returning({ id: profiles.id });
-
-    if (!updated) {
+    const profile = await db.query.profiles.findFirst({
+      where: eq(profiles.id, userId),
+      columns: { credits: true },
+    });
+    if (!profile || profile.credits < creditsCost) {
       throw new Error("Insufficient credits");
     }
-
-    // Record transaction
-    await db.insert(creditTransactions).values({
-      userId,
-      amount: -creditsCost,
-      type: "track_submit",
-      referenceId: data.trackId,
-    });
   }
 
-  // Update track (only if owned by the authenticated user AND still a draft)
+  // Claim the track FIRST: atomically update only if the user owns it, it's
+  // still a draft, and not deleted. This must happen before credit deduction
+  // so that if the track is invalid / already submitted, no credits are lost.
   const [updatedTrack] = await db
     .update(tracks)
     .set({
@@ -87,6 +77,35 @@ export async function submitForRating(data: {
 
   if (!updatedTrack) {
     throw new Error("Track not found or already submitted");
+  }
+
+  // Now deduct credits. The track is already claimed, so if this fails the
+  // worst case is a track in "collecting" with no payment — we roll it back.
+  if (creditsCost > 0) {
+    const [deducted] = await db
+      .update(profiles)
+      .set({ credits: sql`${profiles.credits} - ${creditsCost}` })
+      .where(
+        and(eq(profiles.id, userId), gte(profiles.credits, creditsCost))
+      )
+      .returning({ id: profiles.id });
+
+    if (!deducted) {
+      // Roll back the track claim — revert to draft so the user can retry
+      await db
+        .update(tracks)
+        .set({ status: "draft", contextId: null, votesRequested: 0 })
+        .where(eq(tracks.id, data.trackId));
+      throw new Error("Insufficient credits");
+    }
+
+    // Record credit transaction
+    await db.insert(creditTransactions).values({
+      userId,
+      amount: -creditsCost,
+      type: "track_submit",
+      referenceId: data.trackId,
+    });
   }
 
   return { success: true };
