@@ -17,6 +17,7 @@ interface ProfileTracksProps {
     shareToken: string;
   }[];
   page: number;
+  perPage: number;
   totalPages: number;
   total: number;
 }
@@ -24,6 +25,7 @@ interface ProfileTracksProps {
 export function ProfileTracks({
   tracks,
   page,
+  perPage,
   totalPages,
   total,
 }: ProfileTracksProps) {
@@ -51,7 +53,7 @@ export function ProfileTracks({
       {totalPages > 1 && (
         <div className="flex items-center justify-between pt-2">
           <span className="text-xs text-muted-foreground">
-            {(page - 1) * 3 + 1}-{Math.min(page * 3, total)} of {total} tracks
+            {(page - 1) * perPage + 1}-{Math.min(page * perPage, total)} of {total} tracks
           </span>
           <div className="flex gap-2">
             <Button

@@ -27,6 +27,7 @@ export async function getTracksByUser(userId: string, page: number = 1, perPage:
     tracks: userTracks,
     total: allTracks.length,
     page,
+    perPage,
     totalPages: Math.ceil(allTracks.length / perPage),
   };
 }

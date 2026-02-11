@@ -39,7 +39,7 @@ export function AudioPlayer({
     const onTimeUpdate = () => {
       setCurrentTime(audio.currentTime);
       // Stop at snippet end
-      if (snippetEnd && audio.currentTime >= snippetEnd) {
+      if (snippetEnd !== undefined && audio.currentTime >= snippetEnd) {
         audio.pause();
         setIsPlaying(false);
         if (!hasPlayedOnceRef.current) {

@@ -87,6 +87,7 @@ export default async function ProfilePage({
             shareToken: t.shareToken,
           }))}
           page={trackData.page}
+          perPage={trackData.perPage}
           totalPages={trackData.totalPages}
           total={trackData.total}
         />

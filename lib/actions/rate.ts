@@ -17,6 +17,24 @@ export async function submitRating(data: {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) throw new Error("Unauthorized");
 
+  // Validate trackId
+  if (typeof data.trackId !== "string" || !data.trackId.trim()) {
+    throw new Error("Invalid track ID");
+  }
+
+  // Validate dimension scores are integers between 1 and 10
+  const dims = [data.dimension1, data.dimension2, data.dimension3, data.dimension4];
+  if (dims.some((d) => !Number.isInteger(d) || d < 1 || d > 10)) {
+    throw new Error("Invalid rating values. Each dimension must be an integer between 1 and 10.");
+  }
+
+  // Validate feedback if provided
+  if (data.feedback !== undefined && data.feedback !== null) {
+    if (typeof data.feedback !== "string" || data.feedback.length > 2000) {
+      throw new Error("Feedback must be a string of 2000 characters or fewer.");
+    }
+  }
+
   const raterId = session.user.id;
 
   const result = await db.transaction(async (tx) => {
@@ -26,6 +44,14 @@ export async function submitRating(data: {
       columns: { id: true },
     });
     if (existing) throw new Error("You have already rated this track");
+
+    // Prevent self-rating — blocks score inflation and credit farming
+    const track = await tx.query.tracks.findFirst({
+      where: eq(tracks.id, data.trackId),
+      columns: { userId: true },
+    });
+    if (!track) throw new Error("Track not found");
+    if (track.userId === raterId) throw new Error("You cannot rate your own track");
 
     // Create rating
     await tx.insert(ratings).values({

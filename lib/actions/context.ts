@@ -48,15 +48,20 @@ export async function submitForRating(data: {
       });
     }
 
-    // Update track
-    await tx
+    // Update track (only if owned by the authenticated user)
+    const [updatedTrack] = await tx
       .update(tracks)
       .set({
         contextId: data.contextId,
         votesRequested,
         status: "collecting",
       })
-      .where(eq(tracks.id, data.trackId));
+      .where(and(eq(tracks.id, data.trackId), eq(tracks.userId, userId)))
+      .returning({ id: tracks.id });
+
+    if (!updatedTrack) {
+      throw new Error("Track not found");
+    }
   });
 
   return { success: true };
