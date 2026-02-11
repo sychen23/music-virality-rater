@@ -84,6 +84,10 @@ export async function submitRating(data: {
       .where(eq(profiles.id, raterId))
       .returning();
 
+    if (!updatedProfile) {
+      throw new Error("Rater profile not found");
+    }
+
     // Check if rating progress reached 5 — use atomic compare-and-set
     // to prevent concurrent requests from both awarding a credit.
     let creditEarned = false;
@@ -114,10 +118,18 @@ export async function submitRating(data: {
       }
     }
 
+    // If the CAS succeeded, progress was reset to 0. If it didn't
+    // (unlikely race where a concurrent tx already reset it), the
+    // DB value may be >= 5. Clamp to 0-4 so the client never sees
+    // an out-of-range value.
+    const newProgress = creditEarned
+      ? 0
+      : Math.max(0, Math.min(updatedProfile.ratingProgress, 4));
+
     return {
       updatedTrack,
       creditEarned,
-      newProgress: creditEarned ? 0 : updatedProfile.ratingProgress,
+      newProgress,
     };
   });
 
@@ -190,7 +202,9 @@ async function computeTrackScores(trackId: string) {
     const d3 = avg(trackRatings.map((r) => r.dimension3));
     const d4 = avg(trackRatings.map((r) => r.dimension4));
 
-    const overall = (d1 + d2 + d3 + d4) / 4;
+    // Round once to 1 decimal place so the percentile comparison uses
+    // the same precision as stored overallScore values from other tracks.
+    const overall = Math.round(((d1 + d2 + d3 + d4) / 4) * 10) / 10;
 
     // Get track to find context for percentile
     const track = await tx.query.tracks.findFirst({
@@ -229,7 +243,7 @@ async function computeTrackScores(trackId: string) {
       .update(tracks)
       .set({
         status: "complete",
-        overallScore: Math.round(overall * 10) / 10,
+        overallScore: overall,
         percentile,
       })
       .where(eq(tracks.id, trackId));

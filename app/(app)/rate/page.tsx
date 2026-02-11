@@ -134,6 +134,7 @@ export default function RatePage() {
       {/* Audio player */}
       <div className="mb-6">
         <AudioPlayer
+          key={track.id}
           audioUrl={`/uploads/${track.audioFilename}`}
           snippetStart={track.snippetStart ?? undefined}
           snippetEnd={track.snippetEnd ?? undefined}

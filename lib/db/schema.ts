@@ -37,7 +37,7 @@ export const tracks = pgTable("tracks", {
   overallScore: real("overall_score"),
   percentile: real("percentile"),
   isDeleted: boolean("is_deleted").notNull().default(false),
-  shareToken: text("share_token").notNull(),
+  shareToken: text("share_token").notNull().unique(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

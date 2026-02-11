@@ -24,11 +24,35 @@ export async function createTrack(data: {
 
   const userId = session.user.id;
 
-  // --- Validate audioFilename ---
+  // --- Validate inputs ---
 
   // 1. Regex check: filename must match the format produced by /api/upload
   if (!AUDIO_FILENAME_PATTERN.test(data.audioFilename)) {
     throw new Error("Invalid audio filename format");
+  }
+
+  // 2. Validate duration is a positive finite number
+  if (!Number.isFinite(data.duration) || data.duration <= 0) {
+    throw new Error("Invalid duration");
+  }
+
+  // 3. Validate snippet bounds are within the track and form a valid range
+  const { snippetStart, snippetEnd, duration } = data;
+  if (
+    !Number.isFinite(snippetStart) ||
+    !Number.isFinite(snippetEnd) ||
+    snippetStart < 0 ||
+    snippetEnd > duration ||
+    snippetEnd <= snippetStart
+  ) {
+    throw new Error(
+      "Invalid snippet bounds. Start must be >= 0, end must be <= duration, and end must be > start."
+    );
+  }
+
+  const snippetDuration = snippetEnd - snippetStart;
+  if (snippetDuration < 15 || snippetDuration > 30) {
+    throw new Error("Snippet must be between 15 and 30 seconds long.");
   }
 
   // Ensure profile exists (outside transaction since it uses onConflictDoNothing
