@@ -8,8 +8,13 @@ import { and, eq, sql } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { ensureProfile } from "@/lib/queries/profiles";
 
-/** Validates that a string is a Vercel Blob URL pointing to an audio upload */
-function isValidBlobUrl(url: string): boolean {
+/** Validates that a string is a valid audio upload path (local or Vercel Blob) */
+function isValidAudioUrl(url: string): boolean {
+  // Local uploads: /uploads/{timestamp}-{random}.{ext}
+  if (/^\/uploads\/\d+-[a-z0-9]+\.(mp3|wav|m4a)$/i.test(url)) {
+    return true;
+  }
+  // Vercel Blob URLs
   try {
     const parsed = new URL(url);
     return (
@@ -61,8 +66,8 @@ export async function createTrack(data: {
     }
   }
 
-  // 3. URL check: must be a valid Vercel Blob URL produced by /api/upload
-  if (!isValidBlobUrl(data.audioFilename)) {
+  // 3. URL check: must be a valid audio URL produced by /api/upload
+  if (!isValidAudioUrl(data.audioFilename)) {
     throw new Error("Invalid audio file URL");
   }
 
