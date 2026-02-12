@@ -4,6 +4,17 @@
  */
 import path from "path";
 
+const publicDir = () => path.join(process.cwd(), "public");
+
+/** Resolve a path under public/ and verify it stays within bounds. */
+function safePublicPath(...segments: string[]): string {
+  const resolved = path.resolve(publicDir(), ...segments);
+  if (!resolved.startsWith(publicDir() + path.sep) && resolved !== publicDir()) {
+    throw new Error(`Path traversal blocked: ${segments.join("/")}`);
+  }
+  return resolved;
+}
+
 /** Upload a file and return its public URL. */
 export async function storageUpload(
   filename: string,
@@ -20,9 +31,9 @@ export async function storageUpload(
   }
 
   const { writeFile, mkdir } = await import("fs/promises");
-  const uploadsDir = path.join(process.cwd(), "public", "uploads");
+  const uploadsDir = safePublicPath("uploads");
   await mkdir(uploadsDir, { recursive: true });
-  const filePath = path.join(uploadsDir, filename);
+  const filePath = safePublicPath("uploads", filename);
   const buffer = Buffer.from(await file.arrayBuffer());
   await writeFile(filePath, buffer);
   return { url: `/uploads/${filename}` };
@@ -45,7 +56,7 @@ export async function storageDelete(urls: string | string[]): Promise<void> {
   const { unlink } = await import("fs/promises");
   await Promise.all(
     urlArray.map((u) =>
-      unlink(path.join(process.cwd(), "public", u)).catch((err: NodeJS.ErrnoException) => {
+      unlink(safePublicPath(u)).catch((err: NodeJS.ErrnoException) => {
         if (err.code !== "ENOENT") throw err;
       })
     ),
