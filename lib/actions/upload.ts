@@ -90,59 +90,51 @@ export async function createTrack(data: {
     throw new Error("Snippet must be between 15 and 30 seconds long.");
   }
 
-  // Ensure profile exists (outside transaction since it uses onConflictDoNothing
-  // and has no ordering dependency with the transactional block below)
+  // Ensure profile exists (uses onConflictDoNothing so it's safe to run first)
   await ensureProfile(userId, session.user.name);
 
   const shareToken = randomBytes(8).toString("hex");
 
-  // Wrap the upload claim, track insert, and counter update in a transaction
-  // so they all succeed or all fail atomically. The neon-http driver batches
-  // the SQL into a single HTTP request for transaction support.
-  const track = await db.transaction(async (tx) => {
-    // Atomically claim the upload: UPDATE ... WHERE consumed = false ensures
-    // only one concurrent caller can succeed (the other matches 0 rows).
-    const [claimed] = await tx
-      .update(uploads)
-      .set({ consumed: true })
-      .where(
-        and(
-          eq(uploads.filename, data.audioFilename),
-          eq(uploads.userId, userId),
-          eq(uploads.consumed, false),
-        )
+  // Atomically claim the upload: UPDATE ... WHERE consumed = false ensures
+  // only one concurrent caller can succeed (the other matches 0 rows).
+  const [claimed] = await db
+    .update(uploads)
+    .set({ consumed: true })
+    .where(
+      and(
+        eq(uploads.filename, data.audioFilename),
+        eq(uploads.userId, userId),
+        eq(uploads.consumed, false),
       )
-      .returning({ id: uploads.id });
+    )
+    .returning({ id: uploads.id });
 
-    if (!claimed) {
-      throw new Error(
-        "Audio file not found. Please upload the file before creating a track.",
-      );
-    }
+  if (!claimed) {
+    throw new Error(
+      "Audio file not found. Please upload the file before creating a track.",
+    );
+  }
 
-    const [newTrack] = await tx
-      .insert(tracks)
-      .values({
-        userId,
-        title: data.title,
-        audioFilename: data.audioFilename,
-        duration: data.duration,
-        genreTags: data.genreTags,
-        snippetStart: data.snippetStart,
-        snippetEnd: data.snippetEnd,
-        shareToken,
-        status: "draft",
-      })
-      .returning();
+  const [track] = await db
+    .insert(tracks)
+    .values({
+      userId,
+      title: data.title,
+      audioFilename: data.audioFilename,
+      duration: data.duration,
+      genreTags: data.genreTags,
+      snippetStart: data.snippetStart,
+      snippetEnd: data.snippetEnd,
+      shareToken,
+      status: "draft",
+    })
+    .returning();
 
-    // Increment tracks_uploaded
-    await tx
-      .update(profiles)
-      .set({ tracksUploaded: sql`${profiles.tracksUploaded} + 1` })
-      .where(eq(profiles.id, userId));
-
-    return newTrack;
-  });
+  // Increment tracks_uploaded
+  await db
+    .update(profiles)
+    .set({ tracksUploaded: sql`${profiles.tracksUploaded} + 1` })
+    .where(eq(profiles.id, userId));
 
   return track;
 }
