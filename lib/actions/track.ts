@@ -5,7 +5,7 @@ import { tracks } from "@/lib/db/schema";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { eq, and, ne } from "drizzle-orm";
-import { del } from "@vercel/blob";
+import { storageDelete } from "@/lib/storage";
 
 export async function deleteTrack(trackId: string) {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -45,12 +45,12 @@ export async function deleteTrack(trackId: string) {
     );
   }
 
-  // Remove the audio file from Vercel Blob so it is no longer publicly accessible.
-  // This is best-effort — if the blob is already gone we silently ignore.
+  // Remove the audio file from storage so it is no longer publicly accessible.
+  // This is best-effort — if the file is already gone we silently ignore.
   try {
-    await del(track.audioFilename);
+    await storageDelete(track.audioFilename);
   } catch {
-    // Blob may have already been removed; ignore
+    // File may have already been removed; ignore
   }
 
   return { success: true };
