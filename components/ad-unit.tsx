@@ -15,13 +15,23 @@ export function AdUnit({ adSlot, adFormat = "auto", className }: AdUnitProps) {
   useEffect(() => {
     if (pushed.current) return;
     try {
-      const win = window as Window & { adsbygoogle?: Record<string, unknown>[] };
+      const win = window as Window & {
+        adsbygoogle?: Record<string, unknown>[];
+      };
       (win.adsbygoogle = win.adsbygoogle || []).push({});
       pushed.current = true;
     } catch {
       // AdSense not loaded or ad blocker active
     }
   }, []);
+
+  if (process.env.NODE_ENV !== "production") {
+    return (
+      <div className={`flex items-center justify-center rounded-lg border border-dashed border-muted-foreground/25 bg-muted/30 py-8 text-xs text-muted-foreground ${className ?? ""}`}>
+        Ad placeholder (production only)
+      </div>
+    );
+  }
 
   return (
     <ins
