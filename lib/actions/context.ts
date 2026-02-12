@@ -42,12 +42,14 @@ export async function submitForRating(data: {
   const { votes: votesRequested, credits: creditsCost } = votePackage;
   const userId = session.user.id;
 
+  // Wrap credit deduction, credit transaction record, and track status update
+  // in a single transaction so they all succeed or all roll back atomically.
+  // The neon-http driver batches these into one HTTP request.
   await db.transaction(async (tx) => {
-    // Atomically deduct credits if cost > 0
+    // Deduct credits first if cost > 0.
+    // WHERE credits >= cost is an atomic guard against double-spend.
     if (creditsCost > 0) {
-      // WHERE credits >= cost acts as an atomic guard against double-spend:
-      // if a concurrent request already deducted, this UPDATE matches 0 rows.
-      const [updated] = await tx
+      const [deducted] = await tx
         .update(profiles)
         .set({ credits: sql`${profiles.credits} - ${creditsCost}` })
         .where(
@@ -55,11 +57,11 @@ export async function submitForRating(data: {
         )
         .returning({ id: profiles.id });
 
-      if (!updated) {
+      if (!deducted) {
         throw new Error("Insufficient credits");
       }
 
-      // Record transaction
+      // Record credit transaction
       await tx.insert(creditTransactions).values({
         userId,
         amount: -creditsCost,
@@ -68,7 +70,9 @@ export async function submitForRating(data: {
       });
     }
 
-    // Update track (only if owned by the authenticated user AND still a draft)
+    // Update track (only if owned by the authenticated user AND still a draft).
+    // If this fails (0 rows), the entire transaction rolls back — including
+    // the credit deduction above.
     const [updatedTrack] = await tx
       .update(tracks)
       .set({

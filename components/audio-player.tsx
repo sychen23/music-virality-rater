@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { WaveformVisualizer } from "./waveform-visualizer";
+import { WaveformVisualizer } from "@/components/waveform-visualizer";
 import { Button } from "@/components/ui/button";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {

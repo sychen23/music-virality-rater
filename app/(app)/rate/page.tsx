@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { AudioPlayer } from "@/components/audio-player";
 import { RatingSliderCard } from "@/components/rating-slider-card";
 import { EarnProgressBar } from "@/components/earn-progress-bar";
+import { useAuth } from "@/components/auth-provider";
 import { getContextById, type Dimension } from "@/lib/constants/contexts";
 import { submitRating } from "@/lib/actions/rate";
 
@@ -21,6 +22,7 @@ interface TrackToRate {
 }
 
 export default function RatePage() {
+  const { requireAuth, user } = useAuth();
   const [track, setTrack] = useState<TrackToRate | null>(null);
   const [loading, setLoading] = useState(true);
   const [noTracks, setNoTracks] = useState(false);
@@ -31,12 +33,17 @@ export default function RatePage() {
   const [ratingProgress, setRatingProgress] = useState(0);
   const [trackCount, setTrackCount] = useState(0);
 
+  const [needsAuth, setNeedsAuth] = useState(false);
+
   const fetchTrack = useCallback(async () => {
     setLoading(true);
 
     try {
       const res = await fetch("/api/rate/next");
-      if (res.status === 404) {
+      if (res.status === 401) {
+        setNeedsAuth(true);
+        setTrack(null);
+      } else if (res.status === 404) {
         setNoTracks(true);
         setTrack(null);
         setHasListened(false);
@@ -45,6 +52,7 @@ export default function RatePage() {
       } else if (!res.ok) {
         throw new Error("Failed to load track");
       } else {
+        setNeedsAuth(false);
         const data = await res.json();
         // Reset form state only after a successful fetch so a network
         // error doesn't wipe the user's in-progress ratings.
@@ -63,47 +71,67 @@ export default function RatePage() {
     }
   }, []);
 
+  // Refetch when user signs in. Use user?.id rather than the full user object
+  // to avoid spurious refetches when better-auth's useSession returns a new
+  // object reference on background refreshes without an actual user change.
+  const userId = user?.id;
   useEffect(() => {
     fetchTrack();
-  }, [fetchTrack]);
+  }, [fetchTrack, userId]);
 
   const context = track?.contextId ? getContextById(track.contextId) : null;
   const dimensions: Dimension[] = context?.dimensions ?? [];
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!track || !hasListened) return;
 
-    setSubmitting(true);
-    try {
-      const result = await submitRating({
-        trackId: track.id,
-        dimension1: ratings[0],
-        dimension2: ratings[1],
-        dimension3: ratings[2],
-        dimension4: ratings[3],
-        feedback: feedback.trim() || undefined,
-      });
+    requireAuth(async () => {
+      setSubmitting(true);
+      try {
+        const result = await submitRating({
+          trackId: track.id,
+          dimension1: ratings[0],
+          dimension2: ratings[1],
+          dimension3: ratings[2],
+          dimension4: ratings[3],
+          feedback: feedback.trim() || undefined,
+        });
 
-      if (result.creditEarned) {
-        toast.success("You earned +1 credit!");
-      } else {
-        toast.success("Rating submitted!");
+        if (result.creditEarned) {
+          toast.success("You earned +1 credit!");
+        } else {
+          toast.success("Rating submitted!");
+        }
+        setRatingProgress(result.newProgress);
+        fetchTrack();
+      } catch (err) {
+        toast.error(
+          err instanceof Error ? err.message : "Failed to submit rating"
+        );
+      } finally {
+        setSubmitting(false);
       }
-      setRatingProgress(result.newProgress);
-      fetchTrack();
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to submit rating"
-      );
-    } finally {
-      setSubmitting(false);
-    }
+    });
   };
 
   if (loading) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
         <p className="text-muted-foreground">Loading track...</p>
+      </div>
+    );
+  }
+
+  if (needsAuth) {
+    return (
+      <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4 px-4 text-center">
+        <p className="text-lg font-medium">Rate tracks &amp; earn credits</p>
+        <p className="text-sm text-muted-foreground">
+          Sign in to start rating other artists&apos; music and earn credits for your own uploads.
+        </p>
+        <Button onClick={() => requireAuth(() => {})} className="mt-2">
+          Sign In
+        </Button>
       </div>
     );
   }
@@ -140,7 +168,7 @@ export default function RatePage() {
       <div className="mb-6">
         <AudioPlayer
           key={track.id}
-          audioUrl={`/uploads/${track.audioFilename}`}
+          audioUrl={track.audioFilename}
           snippetStart={track.snippetStart ?? undefined}
           snippetEnd={track.snippetEnd ?? undefined}
           onPlayedOnce={() => setHasListened(true)}

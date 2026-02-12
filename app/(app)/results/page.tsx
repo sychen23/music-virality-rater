@@ -1,13 +1,21 @@
-import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { getTracksByUser } from "@/lib/queries/profiles";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
+import { SignInPrompt } from "@/components/sign-in-prompt";
 
 export default async function ResultsListPage() {
   const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) redirect("/login");
+
+  if (!session) {
+    return (
+      <SignInPrompt
+        title="Your results will appear here"
+        description="Sign in to upload tracks and see how they score."
+      />
+    );
+  }
 
   const { tracks } = await getTracksByUser(session.user.id, 1, 50);
 

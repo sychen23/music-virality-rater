@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -9,10 +9,12 @@ import { VotePackageSelector } from "@/components/vote-package-selector";
 import { EarnProgressBar } from "@/components/earn-progress-bar";
 import { CONTEXTS, type Context } from "@/lib/constants/contexts";
 import { VOTE_PACKAGES } from "@/lib/constants/packages";
+import { useAuth } from "@/components/auth-provider";
 import { submitForRating, getUserProfileData } from "@/lib/actions/context";
 
-export default function ContextPage() {
+function ContextPageContent() {
   const router = useRouter();
+  const { requireAuth, user } = useAuth();
   const searchParams = useSearchParams();
   const trackId = searchParams.get("trackId");
 
@@ -24,7 +26,17 @@ export default function ContextPage() {
   const [ratingProgress, setRatingProgress] = useState(0);
   const [profileError, setProfileError] = useState(false);
 
+  // Only fetch profile data when logged in. Use user.id as the dependency
+  // so it refetches on sign-in without spurious refetches from object
+  // reference changes.
+  const userId = user?.id;
   useEffect(() => {
+    if (!userId) {
+      setUserCredits(null);
+      setRatingProgress(0);
+      setProfileError(false);
+      return;
+    }
     getUserProfileData()
       .then(({ credits, ratingProgress }) => {
         setUserCredits(credits);
@@ -36,27 +48,29 @@ export default function ContextPage() {
         // (the disabled check includes userCredits === null).
         setProfileError(true);
       });
-  }, []);
+  }, [userId]);
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!trackId || !selectedContext) return;
 
-    setSubmitting(true);
-    try {
-      await submitForRating({
-        trackId,
-        contextId: selectedContext.id,
-        packageIndex: selectedPackageIndex,
-      });
-      toast.success("Track submitted for rating!");
-      router.push(`/results/${trackId}`);
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to submit"
-      );
-    } finally {
-      setSubmitting(false);
-    }
+    requireAuth(async () => {
+      setSubmitting(true);
+      try {
+        await submitForRating({
+          trackId,
+          contextId: selectedContext.id,
+          packageIndex: selectedPackageIndex,
+        });
+        toast.success("Track submitted for rating!");
+        router.push(`/results/${trackId}`);
+      } catch (err) {
+        toast.error(
+          err instanceof Error ? err.message : "Failed to submit"
+        );
+      } finally {
+        setSubmitting(false);
+      }
+    });
   };
 
   if (!trackId) {
@@ -124,10 +138,15 @@ export default function ContextPage() {
         </p>
       </div>
 
-      {/* Profile error */}
+      {/* Auth / profile status */}
+      {!userId && (
+        <p className="mb-4 text-center text-sm text-muted-foreground">
+          Sign in to submit your track for rating.
+        </p>
+      )}
       {profileError && (
         <p className="mb-4 text-center text-sm text-destructive">
-          Could not load your profile. Please refresh the page or sign in again.
+          Could not load your profile. Please refresh the page.
         </p>
       )}
 
@@ -141,5 +160,19 @@ export default function ContextPage() {
         {submitting ? "Submitting..." : "Submit for Rating"}
       </Button>
     </div>
+  );
+}
+
+export default function ContextPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-[50vh] items-center justify-center">
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      }
+    >
+      <ContextPageContent />
+    </Suspense>
   );
 }
