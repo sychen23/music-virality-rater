@@ -28,7 +28,11 @@ export async function storageUpload(
   return { url: `/uploads/${filename}` };
 }
 
-/** Delete one or more files by URL. Throws on failure so callers can handle retries. */
+/**
+ * Delete one or more files by URL.
+ * Missing files are silently skipped (matches Vercel Blob `del()` semantics).
+ * Real I/O errors (permissions, disk) are thrown so callers can retry.
+ */
 export async function storageDelete(urls: string | string[]): Promise<void> {
   const urlArray = Array.isArray(urls) ? urls : [urls];
 
@@ -41,7 +45,9 @@ export async function storageDelete(urls: string | string[]): Promise<void> {
   const { unlink } = await import("fs/promises");
   await Promise.all(
     urlArray.map((u) =>
-      unlink(path.join(process.cwd(), "public", u))
+      unlink(path.join(process.cwd(), "public", u)).catch((err: NodeJS.ErrnoException) => {
+        if (err.code !== "ENOENT") throw err;
+      })
     ),
   );
 }
