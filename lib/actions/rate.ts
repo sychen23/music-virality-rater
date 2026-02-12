@@ -55,91 +55,81 @@ export async function submitRating(data: {
   }
   if (track.userId === raterId) throw new Error("You cannot rate your own track");
 
-  // Wrap the rating insert, vote count increment, rater stats update, and
-  // credit awarding in a single transaction so they all succeed or all roll
-  // back atomically. The neon-http driver batches these into one HTTP request.
-  const result = await db.transaction(async (tx) => {
-    // Create rating
-    await tx.insert(ratings).values({
-      trackId: data.trackId,
-      raterId,
-      dimension1: data.dimension1,
-      dimension2: data.dimension2,
-      dimension3: data.dimension3,
-      dimension4: data.dimension4,
-      feedback: data.feedback || null,
-    });
+  // Insert rating, increment counters, and award credits as sequential queries.
+  // Each step uses atomic WHERE guards to prevent race conditions.
+  // (The neon-http driver does not support transactions.)
 
-    // Increment votes_received on track
-    const [txUpdatedTrack] = await tx
-      .update(tracks)
-      .set({ votesReceived: sql`${tracks.votesReceived} + 1` })
-      .where(eq(tracks.id, data.trackId))
-      .returning();
-
-    // Increment rater stats
-    const [txUpdatedProfile] = await tx
-      .update(profiles)
-      .set({
-        tracksRated: sql`${profiles.tracksRated} + 1`,
-        ratingProgress: sql`${profiles.ratingProgress} + 1`,
-      })
-      .where(eq(profiles.id, raterId))
-      .returning();
-
-    if (!txUpdatedProfile) {
-      throw new Error("Rater profile not found");
-    }
-
-    // Check if rating progress reached 5 — use atomic compare-and-set
-    // to prevent concurrent requests from both awarding a credit.
-    let creditEarned = false;
-    if (txUpdatedProfile.ratingProgress >= 5) {
-      // Only reset & award if ratingProgress is still >= 5 (guards against
-      // a concurrent request that already reset it).
-      const [reset] = await tx
-        .update(profiles)
-        .set({
-          ratingProgress: 0,
-          credits: sql`${profiles.credits} + 1`,
-        })
-        .where(
-          and(
-            eq(profiles.id, raterId),
-            sql`${profiles.ratingProgress} >= 5`
-          )
-        )
-        .returning({ id: profiles.id });
-
-      if (reset) {
-        creditEarned = true;
-        await tx.insert(creditTransactions).values({
-          userId: raterId,
-          amount: 1,
-          type: "rating_bonus",
-        });
-      }
-    }
-
-    // If the CAS succeeded, progress was reset to 0. If it didn't
-    // (unlikely race where a concurrent tx already reset it), the
-    // DB value may be >= 5. Clamp to 0-4 so the client never sees
-    // an out-of-range value.
-    const newProgress = creditEarned
-      ? 0
-      : Math.max(0, Math.min(txUpdatedProfile.ratingProgress, 4));
-
-    return {
-      updatedTrack: txUpdatedTrack,
-      creditEarned,
-      newProgress,
-    };
+  // Create rating (unique constraint on trackId+raterId prevents duplicates)
+  await db.insert(ratings).values({
+    trackId: data.trackId,
+    raterId,
+    dimension1: data.dimension1,
+    dimension2: data.dimension2,
+    dimension3: data.dimension3,
+    dimension4: data.dimension4,
+    feedback: data.feedback || null,
   });
 
-  // If track reached vote goal, compute scores. Runs outside the main
-  // transaction to keep that transaction short. computeTrackScores uses
-  // its own transaction with an advisory lock to prevent concurrent
-  // callers from racing (e.g. two final ratings arriving simultaneously).
+  // Increment votes_received on track
+  const [updatedTrack] = await db
+    .update(tracks)
+    .set({ votesReceived: sql`${tracks.votesReceived} + 1` })
+    .where(eq(tracks.id, data.trackId))
+    .returning();
+
+  // Increment rater stats
+  const [updatedProfile] = await db
+    .update(profiles)
+    .set({
+      tracksRated: sql`${profiles.tracksRated} + 1`,
+      ratingProgress: sql`${profiles.ratingProgress} + 1`,
+    })
+    .where(eq(profiles.id, raterId))
+    .returning();
+
+  if (!updatedProfile) {
+    throw new Error("Rater profile not found");
+  }
+
+  // Check if rating progress reached 5 — use atomic compare-and-set
+  // to prevent concurrent requests from both awarding a credit.
+  let creditEarned = false;
+  if (updatedProfile.ratingProgress >= 5) {
+    const [reset] = await db
+      .update(profiles)
+      .set({
+        ratingProgress: 0,
+        credits: sql`${profiles.credits} + 1`,
+      })
+      .where(
+        and(
+          eq(profiles.id, raterId),
+          sql`${profiles.ratingProgress} >= 5`
+        )
+      )
+      .returning({ id: profiles.id });
+
+    if (reset) {
+      creditEarned = true;
+      await db.insert(creditTransactions).values({
+        userId: raterId,
+        amount: 1,
+        type: "rating_bonus",
+      });
+    }
+  }
+
+  const newProgress = creditEarned
+    ? 0
+    : Math.max(0, Math.min(updatedProfile.ratingProgress, 4));
+
+  const result = {
+    updatedTrack,
+    creditEarned,
+    newProgress,
+  };
+
+  // If track reached vote goal, compute scores.
   // Guard: votesRequested must be > 0 to avoid triggering on draft tracks
   // where votesRequested defaults to 0 (defense-in-depth alongside the
   // status === 'collecting' check above).
