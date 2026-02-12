@@ -15,6 +15,7 @@ import { evictCachedWaveform } from "@/lib/audio-context";
 import { useAuth } from "@/components/auth-provider";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { CloudUploadIcon, Delete02Icon } from "@hugeicons/core-free-icons";
+import { AdUnit } from "@/components/ad-unit";
 
 export default function UploadPage() {
   const router = useRouter();
@@ -203,6 +204,11 @@ export default function UploadPage() {
               if (f) requireAuth(() => handleFile(f));
             }}
           />
+
+          {/* Ad — only visible before upload */}
+          <div className="mt-6">
+            <AdUnit adSlot="3426548881" />
+          </div>
         </>
       ) : (
         <div className="space-y-6">

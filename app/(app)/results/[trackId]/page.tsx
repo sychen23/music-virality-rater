@@ -53,6 +53,9 @@ export default async function ResultsPage({
         overallScore: track.overallScore,
         percentile: track.percentile,
         shareToken: track.shareToken,
+        audioFilename: track.audioFilename,
+        snippetStart: track.snippetStart,
+        snippetEnd: track.snippetEnd,
       }}
       dimensions={dimensions}
       dimensionAverages={dimensionAverages}

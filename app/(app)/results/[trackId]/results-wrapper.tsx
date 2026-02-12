@@ -16,6 +16,9 @@ interface ResultsViewWrapperProps {
     overallScore: number | null;
     percentile: number | null;
     shareToken: string;
+    audioFilename: string;
+    snippetStart: number | null;
+    snippetEnd: number | null;
   };
   dimensions: Dimension[];
   dimensionAverages: number[];

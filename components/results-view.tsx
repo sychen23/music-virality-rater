@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScoreBar } from "@/components/score-bar";
 import { InsightCard } from "@/components/insight-card";
+import { AudioPlayer } from "@/components/audio-player";
 import { formatPercentile } from "@/lib/utils";
 import type { Dimension } from "@/lib/constants/contexts";
 
@@ -23,6 +24,9 @@ interface ResultsViewProps {
     overallScore: number | null;
     percentile: number | null;
     shareToken: string;
+    audioFilename: string;
+    snippetStart: number | null;
+    snippetEnd: number | null;
   };
   dimensions: Dimension[];
   dimensionAverages: number[];
@@ -71,6 +75,15 @@ export function ResultsView({
             Delete
           </Button>
         )}
+      </div>
+
+      {/* Audio Clip */}
+      <div className="mb-6">
+        <AudioPlayer
+          audioUrl={track.audioFilename}
+          snippetStart={track.snippetStart ?? undefined}
+          snippetEnd={track.snippetEnd ?? undefined}
+        />
       </div>
 
       {/* Overall Score */}
