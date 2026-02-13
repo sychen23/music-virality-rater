@@ -22,10 +22,10 @@ export async function submitRating(data: {
     throw new Error("Invalid track ID");
   }
 
-  // Validate dimension scores are integers between 1 and 10
+  // Validate dimension scores are integers between 0 and 3
   const dims = [data.dimension1, data.dimension2, data.dimension3, data.dimension4];
-  if (dims.some((d) => !Number.isInteger(d) || d < 1 || d > 10)) {
-    throw new Error("Invalid rating values. Each dimension must be an integer between 1 and 10.");
+  if (dims.some((d) => !Number.isInteger(d) || d < 0 || d > 3)) {
+    throw new Error("Invalid rating values. Each dimension must be an integer between 0 and 3.");
   }
 
   // Validate feedback if provided
