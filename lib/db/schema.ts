@@ -151,6 +151,20 @@ export const uploads = pgTable("uploads", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+export const aiInsights = pgTable(
+  "ai_insights",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    trackId: uuid("track_id")
+      .notNull()
+      .references(() => tracks.id),
+    milestone: integer("milestone").notNull(), // 20, 50, or 100
+    insights: text("insights").notNull(), // JSON string of insight array
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [unique("ai_insights_track_milestone").on(t.trackId, t.milestone)]
+);
+
 export const creditTransactions = pgTable("credit_transactions", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: text("user_id")
@@ -180,5 +194,12 @@ export const accountRelations = relations(account, ({ one }) => ({
   user: one(user, {
     fields: [account.userId],
     references: [user.id],
+  }),
+}));
+
+export const aiInsightsRelations = relations(aiInsights, ({ one }) => ({
+  track: one(tracks, {
+    fields: [aiInsights.trackId],
+    references: [tracks.id],
   }),
 }));

@@ -5,6 +5,7 @@ import { ratings, tracks, profiles, creditTransactions } from "@/lib/db/schema";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { eq, sql, and } from "drizzle-orm";
+import { generateAIInsights } from "@/lib/actions/ai";
 
 export async function submitRating(data: {
   trackId: string;
@@ -76,6 +77,19 @@ export async function submitRating(data: {
     .set({ votesReceived: sql`${tracks.votesReceived} + 1` })
     .where(eq(tracks.id, data.trackId))
     .returning();
+
+  // Fire-and-forget AI insight generation at vote milestones (20, 50, 100).
+  // Only triggers if the vote package includes that many votes.
+  const AI_MILESTONES = [20, 50, 100] as const;
+  if (
+    updatedTrack &&
+    AI_MILESTONES.includes(updatedTrack.votesReceived as 20 | 50 | 100) &&
+    updatedTrack.votesReceived <= updatedTrack.votesRequested
+  ) {
+    generateAIInsights(data.trackId, updatedTrack.votesReceived).catch(
+      (err) => console.error("[AI Insights] Background generation failed:", err)
+    );
+  }
 
   // Increment rater stats
   const [updatedProfile] = await db

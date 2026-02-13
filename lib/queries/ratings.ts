@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
-import { ratings } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { ratings, aiInsights } from "@/lib/db/schema";
+import { eq, desc } from "drizzle-orm";
+import type { AIInsight } from "@/lib/actions/ai";
 
 export async function getTrackRatings(trackId: string) {
   return db.query.ratings.findMany({
@@ -74,4 +75,25 @@ export function generateInsights(
   }
 
   return insights;
+}
+
+/**
+ * Fetch the latest AI-generated insights for a track.
+ * Returns insights from the highest milestone reached, or null if none exist.
+ */
+export async function getAIInsights(trackId: string): Promise<AIInsight[] | null> {
+  const rows = await db.query.aiInsights.findMany({
+    where: eq(aiInsights.trackId, trackId),
+    orderBy: [desc(aiInsights.milestone)],
+    limit: 1,
+  });
+
+  if (rows.length === 0) return null;
+
+  try {
+    const parsed = JSON.parse(rows[0].insights) as AIInsight[];
+    return parsed.length > 0 ? parsed : null;
+  } catch {
+    return null;
+  }
 }
