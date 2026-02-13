@@ -7,7 +7,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { AudioPlayer } from "@/components/audio-player";
 import { RatingTrackColumns } from "@/components/rating-track-columns";
-import { EarnProgressBar } from "@/components/earn-progress-bar";
 import { useAuth } from "@/components/auth-provider";
 import { getContextById, type Dimension } from "@/lib/constants/contexts";
 import { submitRating } from "@/lib/actions/rate";
@@ -30,7 +29,6 @@ export default function RatePage() {
   const [feedback, setFeedback] = useState("");
   const [hasListened, setHasListened] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [ratingProgress, setRatingProgress] = useState(0);
   const [trackCount, setTrackCount] = useState(0);
 
   const [needsAuth, setNeedsAuth] = useState(false);
@@ -60,7 +58,6 @@ export default function RatePage() {
         setRatings([null, null, null, null]);
         setFeedback("");
         setTrack(data.track);
-        setRatingProgress(data.ratingProgress ?? 0);
         setNoTracks(false);
         setTrackCount((c) => c + 1);
       }
@@ -99,12 +96,7 @@ export default function RatePage() {
           feedback: feedback.trim() || undefined,
         });
 
-        if (result.creditEarned) {
-          toast.success("You earned +1 credit!");
-        } else {
-          toast.success("Rating submitted!");
-        }
-        setRatingProgress(result.newProgress);
+        toast.success(`Rating submitted! +${result.creditsEarned} credits`);
         fetchTrack();
       } catch (err) {
         toast.error(
@@ -151,11 +143,8 @@ export default function RatePage() {
 
   return (
     <div className="mx-auto max-w-lg px-4 py-6">
-      {/* Progress */}
-      <EarnProgressBar ratingProgress={ratingProgress} />
-
       {/* Context badge + track count */}
-      <div className="mt-4 mb-4 flex items-center justify-between">
+      <div className="mb-4 flex items-center justify-between">
         {context && (
           <Badge variant="secondary">
             {context.icon} {context.name}
