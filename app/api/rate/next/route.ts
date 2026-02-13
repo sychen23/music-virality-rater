@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { getNextTrackToRate } from "@/lib/queries/tracks";
-import { getProfile, ensureProfile } from "@/lib/queries/profiles";
+import { ensureProfile } from "@/lib/queries/profiles";
 
 export async function GET() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -18,8 +18,6 @@ export async function GET() {
     return NextResponse.json({ error: "No tracks available" }, { status: 404 });
   }
 
-  const profile = await getProfile(userId);
-
   return NextResponse.json({
     track: {
       id: track.id,
@@ -29,6 +27,5 @@ export async function GET() {
       snippetStart: track.snippetStart,
       snippetEnd: track.snippetEnd,
     },
-    ratingProgress: profile?.ratingProgress ?? 0,
   });
 }

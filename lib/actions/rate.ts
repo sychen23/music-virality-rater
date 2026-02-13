@@ -47,7 +47,7 @@ export async function submitRating(data: {
   // Fetch track and verify it exists, is actively collecting, and isn't owned by the rater
   const track = await db.query.tracks.findFirst({
     where: eq(tracks.id, data.trackId),
-    columns: { userId: true, status: true },
+    columns: { userId: true, status: true, snippetStart: true, snippetEnd: true },
   });
   if (!track) throw new Error("Track not found");
   if (track.status !== "collecting") {
@@ -77,12 +77,16 @@ export async function submitRating(data: {
     .where(eq(tracks.id, data.trackId))
     .returning();
 
-  // Increment rater stats
+  // Compute credits earned based on clip duration
+  const clipDuration = (track.snippetEnd ?? 0) - (track.snippetStart ?? 0);
+  const creditsEarned = Math.max(1, Math.round(clipDuration / 10));
+
+  // Increment rater stats and award credits
   const [updatedProfile] = await db
     .update(profiles)
     .set({
       tracksRated: sql`${profiles.tracksRated} + 1`,
-      ratingProgress: sql`${profiles.ratingProgress} + 1`,
+      credits: sql`${profiles.credits} + ${creditsEarned}`,
     })
     .where(eq(profiles.id, raterId))
     .returning();
@@ -91,42 +95,16 @@ export async function submitRating(data: {
     throw new Error("Rater profile not found");
   }
 
-  // Check if rating progress reached 5 — use atomic compare-and-set
-  // to prevent concurrent requests from both awarding a credit.
-  let creditEarned = false;
-  if (updatedProfile.ratingProgress >= 5) {
-    const [reset] = await db
-      .update(profiles)
-      .set({
-        ratingProgress: 0,
-        credits: sql`${profiles.credits} + 1`,
-      })
-      .where(
-        and(
-          eq(profiles.id, raterId),
-          sql`${profiles.ratingProgress} >= 5`
-        )
-      )
-      .returning({ id: profiles.id });
-
-    if (reset) {
-      creditEarned = true;
-      await db.insert(creditTransactions).values({
-        userId: raterId,
-        amount: 1,
-        type: "rating_bonus",
-      });
-    }
-  }
-
-  const newProgress = creditEarned
-    ? 0
-    : Math.max(0, Math.min(updatedProfile.ratingProgress, 4));
+  // Log credit transaction
+  await db.insert(creditTransactions).values({
+    userId: raterId,
+    amount: creditsEarned,
+    type: "rating_bonus",
+  });
 
   const result = {
     updatedTrack,
-    creditEarned,
-    newProgress,
+    creditsEarned,
   };
 
   // If track reached vote goal, compute scores.
@@ -142,8 +120,7 @@ export async function submitRating(data: {
   }
 
   return {
-    creditEarned: result.creditEarned,
-    newProgress: result.newProgress,
+    creditsEarned: result.creditsEarned,
   };
 }
 

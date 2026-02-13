@@ -2,7 +2,6 @@ import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { getProfile, getTracksByUser, ensureProfile } from "@/lib/queries/profiles";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { EarnProgressBar } from "@/components/earn-progress-bar";
 import { ProfileTracks } from "./profile-tracks";
 import { LogoutButton } from "./logout-button";
 import { SignInPrompt } from "@/components/sign-in-prompt";
@@ -79,11 +78,6 @@ export default async function ProfilePage({
             <p className="text-xs text-muted-foreground">{stat.label}</p>
           </div>
         ))}
-      </div>
-
-      {/* Earn progress */}
-      <div className="mb-6">
-        <EarnProgressBar ratingProgress={profile.ratingProgress} />
       </div>
 
       {/* My Tracks */}
