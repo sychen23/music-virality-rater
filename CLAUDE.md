@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Soundcheck** — a music virality rater web application. Early-stage project with UI scaffolding, authentication, and database infrastructure in place.
+**Soundcheck** — a music virality rater web app. Users upload audio tracks, select a snippet, choose a context (TikTok, Spotify, Radio, Sync), and submit for community ratings. Raters score tracks on 4 context-specific dimensions (1–10). A credit system incentivizes rating: rate 5 tracks to earn 1 credit; credits are spent to submit tracks for rating.
 
 ## Commands
 
@@ -12,10 +12,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 bun dev          # Start dev server (localhost:3000)
 bun run build    # Production build
 bun run lint     # ESLint (next core-web-vitals + typescript)
-bun start        # Start production server
 ```
 
-Database (requires `docker compose up -d` for local Postgres on port 5434):
+Database (requires `docker compose up -d` for Neon Local proxy on port 5434):
 ```bash
 bun run db:generate   # Generate Drizzle migrations from schema
 bun run db:migrate    # Run migrations
@@ -30,67 +29,118 @@ bunx shadcn@latest add <component-name>
 
 ## Tech Stack
 
-- **Next.js 16** with App Router (RSC enabled)
-- **React 19** with TypeScript (strict mode)
-- **Tailwind CSS v4** via `@tailwindcss/postcss` (no `tailwind.config` file — config is CSS-based in `app/globals.css`)
-- **shadcn/ui** using the `radix-nova` style, with `radix-ui` primitives and `class-variance-authority`
-- **Hugeicons** (`@hugeicons/react` + `@hugeicons/core-free-icons`) as the icon library — not Lucide
-- **Drizzle ORM** with `postgres.js` driver, migrations in `db/migrations/`
-- **better-auth** for authentication with Google OAuth social provider
+- **Next.js 16** with App Router (RSC enabled), **React 19**, TypeScript (strict)
+- **Tailwind CSS v4** via `@tailwindcss/postcss` (no `tailwind.config` — config is CSS-based in `app/globals.css`)
+- **shadcn/ui** (`radix-nova` style) with `radix-ui` primitives and `class-variance-authority`
+- **Hugeicons** (`@hugeicons/react` + `@hugeicons/core-free-icons`) — **not Lucide**
+- **Drizzle ORM** with `@neondatabase/serverless` (neon-http driver), migrations in `db/migrations/`
+- **better-auth** with Google OAuth
+- **Vercel Blob** for audio file storage
 - **AI SDK** (`ai` + `@ai-sdk/react`) with Zod for validation
 - **bun** as the package manager (lockfile: `bun.lock`)
 
 ## Architecture
 
-### App & Layout
+### Route Structure
 
-- `app/layout.tsx` — Root layout wraps everything in `AuthProvider` and renders `AuthModal` globally. Uses `next/font/google` for Inter, Geist, and Geist Mono fonts.
-- `app/api/auth/[...all]/route.ts` — better-auth catch-all API route handler.
-- `proxy.ts` — Next.js middleware for auth redirects (protects `/dashboard/*`, redirects authenticated users away from `/login`).
+```
+app/
+├── page.tsx                          # Landing page
+├── r/[shareToken]/page.tsx           # Public results share page
+├── (app)/
+│   ├── upload/page.tsx               # File upload + snippet selection
+│   ├── context/page.tsx              # Context + vote package selection
+│   ├── rate/page.tsx                 # Rating interface
+│   ├── results/page.tsx              # User's track results list
+│   ├── results/[trackId]/page.tsx    # Individual track results + insights
+│   └── profile/page.tsx              # User profile + stats
+└── api/
+    ├── auth/[...all]/route.ts        # better-auth catch-all handler
+    ├── upload/route.ts               # File upload to Vercel Blob
+    ├── rate/next/route.ts            # Get next track to rate
+    └── cleanup/route.ts              # Cleanup orphaned uploads (cron)
+```
+
+### Data Layer
+
+**Server Actions** (`lib/actions/`):
+- `upload.ts` — `createTrack()`: validates input, claims upload in atomic transaction, creates track
+- `rate.ts` — `submitRating()`: inserts rating, updates stats, awards credits at 5-rating threshold; `computeTrackScores()`: averages dimensions, calculates percentile
+- `context.ts` — `submitForRating()`: deducts credits + sets track to "collecting" in atomic transaction; `getUserProfileData()`
+- `track.ts` — `deleteTrack()`: soft-deletes track + removes blob from Vercel storage
+- `cleanup.ts` — `cleanupOrphanedUploads()`: deletes unconsumed uploads older than 24h
+
+**Queries** (`lib/queries/`):
+- `profiles.ts` — `getProfile()`, `getTracksByUser()`, `ensureProfile()`
+- `tracks.ts` — `getNextTrackToRate()`, `getTrackById()`, `getTrackByShareToken()`
+- `ratings.ts` — `getTrackRatings()`, `computeDimensionAverages()`, `generateInsights()`
+
+### Database Schema (`lib/db/schema.ts`)
+
+Beyond the better-auth tables (user, session, account, verification), the app defines:
+- **profiles** — extends users with `handle`, `credits` (default 20), `tracksUploaded`, `tracksRated`, `ratingProgress` (0–4, resets at 5)
+- **tracks** — audio tracks with `status` (draft → collecting → complete), snippet bounds, vote counts, `overallScore`, `percentile`, `shareToken`
+- **ratings** — 4 dimension scores (1–10) per track per rater, unique constraint on (trackId, raterId)
+- **uploads** — temporary Vercel Blob file tracking with `consumed` flag
+- **creditTransactions** — audit log of all credit changes with type + referenceId
+
+DB client (`lib/db/index.ts`) uses `drizzle-orm/neon-http` with `@neondatabase/serverless`. In dev, the Neon Local proxy runs via Docker on port 5434.
 
 ### Authentication (action-gated pattern)
 
 The app is fully browsable without login. Actions are gated via `requireAuth()`:
 
-- `lib/auth.ts` — Server-side better-auth config with Drizzle adapter.
-- `lib/auth-client.ts` — Client-side auth exports: `signIn`, `signOut`, `signUp`, `useSession`.
-- `lib/auth-session.ts` — Server-side `getSession()` helper (uses `headers()` from Next.js).
-- `components/auth-provider.tsx` — `AuthProvider` context + `useAuth()` hook. Provides `session`, `user`, `isPending`, `openAuthModal`, `closeAuthModal`, `requireAuth`.
-- `components/auth-modal.tsx` — Global sign-in dialog (Google OAuth). Controlled by AuthProvider state.
+- `lib/auth.ts` — Server-side better-auth config with Drizzle adapter
+- `lib/auth-client.ts` — Client-side exports: `signIn`, `signOut`, `signUp`, `useSession`
+- `lib/auth-session.ts` — Server-side `getSession()` helper (uses `headers()`)
+- `components/auth-provider.tsx` — `AuthProvider` context + `useAuth()` hook
 
-To gate any action behind auth:
 ```tsx
 const { requireAuth } = useAuth()
 <Button onClick={() => requireAuth(() => { /* runs only if logged in */ })}>Action</Button>
 ```
 
-### Database
+### Credit System
 
-- `docker-compose.yml` — Local Postgres (port 5434, user/pass: soundcheck/doublesoundcheck).
-- `lib/db.ts` — Drizzle client instance with schema.
-- `db/schema.ts` — Drizzle schema (user, session, account, verification tables + relations).
-- `drizzle.config.ts` — Drizzle Kit config, migrations output to `db/migrations/`.
+- **Start**: 20 credits on signup
+- **Earn**: Rate 5 tracks → +1 credit (tracked by `profiles.ratingProgress`, resets at threshold)
+- **Spend**: Submit for Standard (50 votes, 5 credits) or Premium (100 votes, 12 credits). Starter (20 votes) is free.
+- All changes logged in `creditTransactions` table
+- Deductions use atomic transactions with `WHERE credits >= cost` guard
 
-### UI Components
+### Key Constants
 
-- `components/ui/` — shadcn/ui primitives (generated by CLI — avoid manual edits).
-- `components/` — App-level components.
-- `lib/utils.ts` — `cn()` helper (clsx + tailwind-merge).
+- **Contexts** (`lib/constants/contexts.ts`): TikTok/Reels, Spotify Discover, Radio/Mainstream, Sync/Licensing — each with 4 unique rating dimensions
+- **Vote Packages** (`lib/constants/packages.ts`): Starter (20 votes, free), Standard (50 votes, 5 credits), Premium (100 votes, 12 credits)
 
-## Path Aliases
+### File Upload Flow
 
-`@/*` maps to the project root (configured in `tsconfig.json`).
+1. Client POSTs FormData to `/api/upload/route.ts`
+2. Validates: auth, rate limit (10/hour), MIME type (audio/mpeg, wav, x-m4a), file size (≤10MB)
+3. Uploads to Vercel Blob (`uploads/{timestamp}-{random}.{ext}`)
+4. Records in `uploads` table with `consumed=false`
+5. When track is created, upload is claimed (`consumed=true`) in atomic transaction
+6. Orphaned uploads cleaned up after 24h via cron endpoint
+
+### Audio/Waveform (`lib/audio-context.ts`)
+
+Single shared `AudioContext` (browser limit ~6). Waveform data cached by `${url}:${barCount}` with LRU eviction (max 64 entries).
 
 ## Environment Variables
 
 See `.env.example`:
 - `BETTER_AUTH_SECRET` / `BETTER_AUTH_URL` — better-auth config
-- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` — Google OAuth credentials
-- `DATABASE_URL` — Postgres connection string
+- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` — Google OAuth
+- `DATABASE_URL` — Postgres connection string (Neon Local in dev, Neon cloud in prod)
+- `NEON_API_KEY` / `NEON_PROJECT_ID` — Neon project config
+- `BLOB_READ_WRITE_TOKEN` — Vercel Blob storage
+- `CLEANUP_SECRET` — Bearer token for cleanup cron endpoint
 
 ## Conventions
 
-- shadcn components use `data-slot` attributes for styling hooks.
-- Icons: use `<HugeiconsIcon icon={SomeIcon} strokeWidth={2} />` pattern — import icons from `@hugeicons/core-free-icons`.
-- CSS theming uses oklch color space with CSS custom properties and light/dark mode support (`.dark` class).
-- Server-side session checks use `getSession()` from `lib/auth-session.ts`. Client-side uses `useAuth()` from `components/auth-provider.tsx`.
+- `@/*` path alias maps to project root
+- Icons: `<HugeiconsIcon icon={SomeIcon} strokeWidth={2} />` — import from `@hugeicons/core-free-icons`
+- shadcn components use `data-slot` attributes for styling hooks; avoid manual edits to `components/ui/`
+- CSS theming uses oklch color space with CSS custom properties and `.dark` class for dark mode
+- Server-side session: `getSession()` from `lib/auth-session.ts`. Client-side: `useAuth()` from `components/auth-provider.tsx`
+- All multi-step mutations (credit deduction, rating + stats update, upload claiming) use `db.transaction()` with WHERE guards for atomicity and race-condition safety

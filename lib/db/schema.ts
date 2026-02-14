@@ -129,7 +129,7 @@ export const ratings = pgTable(
     raterId: text("rater_id")
       .notNull()
       .references(() => profiles.id),
-    dimension1: integer("dimension_1").notNull(), // 1-10
+    dimension1: integer("dimension_1").notNull(), // 0-3 (No, Kinda, Yes, Very)
     dimension2: integer("dimension_2").notNull(),
     dimension3: integer("dimension_3").notNull(),
     dimension4: integer("dimension_4").notNull(),

@@ -3,11 +3,11 @@ import { cn } from "@/lib/utils";
 interface ScoreBarProps {
   label: string;
   emoji: string;
-  score: number; // 1-10
+  score: number; // 0-3
   maxScore?: number;
 }
 
-export function ScoreBar({ label, emoji, score, maxScore = 10 }: ScoreBarProps) {
+export function ScoreBar({ label, emoji, score, maxScore = 3 }: ScoreBarProps) {
   const pct = (score / maxScore) * 100;
 
   return (
@@ -17,7 +17,7 @@ export function ScoreBar({ label, emoji, score, maxScore = 10 }: ScoreBarProps) 
           <span>{emoji}</span>
           <span className="font-medium">{label}</span>
         </span>
-        <span className="font-bold text-primary">{score.toFixed(1)}</span>
+        <span className="font-bold text-primary">{Math.round(pct)}%</span>
       </div>
       <div className="h-2.5 overflow-hidden rounded-full bg-muted">
         <div

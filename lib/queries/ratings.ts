@@ -47,20 +47,20 @@ export function generateInsights(
 
   insights.push({
     title: `Strongest: ${dimensionNames[maxIdx]}`,
-    description: `Your ${dimensionNames[maxIdx].toLowerCase()} scored ${dimensionAverages[maxIdx].toFixed(1)}/10. This is your track's standout quality — lean into it in your promotion strategy.`,
+    description: `Your ${dimensionNames[maxIdx].toLowerCase()} scored ${Math.round((dimensionAverages[maxIdx] / 3) * 100)}%. This is your track's standout quality — lean into it in your promotion strategy.`,
     variant: "success",
   });
 
-  if (dimensionAverages[minIdx] < 6) {
+  if (dimensionAverages[minIdx] < 1.8) {
     insights.push({
       title: `Room to Grow: ${dimensionNames[minIdx]}`,
-      description: `${dimensionNames[minIdx]} scored ${dimensionAverages[minIdx].toFixed(1)}/10. Consider reworking this aspect — small improvements here could significantly boost your overall virality score.`,
+      description: `${dimensionNames[minIdx]} scored ${Math.round((dimensionAverages[minIdx] / 3) * 100)}%. Consider reworking this aspect — small improvements here could significantly boost your overall virality score.`,
       variant: "warning",
     });
   }
 
   const overall = dimensionAverages.reduce((a, b) => a + b, 0) / dimensionAverages.length;
-  if (overall >= 7) {
+  if (overall >= 2.1) {
     insights.push({
       title: "High Potential",
       description: "Your track scores well across all dimensions. It has strong viral potential — focus on distribution and timing for maximum impact.",

@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
-import { del, put } from "@vercel/blob";
 import { db } from "@/lib/db";
 import { uploads } from "@/lib/db/schema";
 import { ensureProfile } from "@/lib/queries/profiles";
 import { and, eq, gte } from "drizzle-orm";
+import { storageUpload, storageDelete } from "@/lib/storage";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const MAX_UPLOADS_PER_HOUR = 10;
@@ -59,34 +59,28 @@ export async function POST(request: NextRequest) {
 
   const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
 
-  // Upload to Vercel Blob storage, then persist the DB record.
-  // If the DB insert (or ensureProfile) fails after the blob is already
-  // uploaded, we delete the blob so it doesn't become permanently orphaned
-  // and accrue storage costs with no corresponding DB row.
-  const blob = await put(`uploads/${filename}`, file, {
-    access: "public",
-    contentType: file.type,
-    addRandomSuffix: false,
-  });
+  // Upload to storage (Vercel Blob in prod, local filesystem in dev).
+  // If the DB insert (or ensureProfile) fails after the file is already
+  // uploaded, we delete the file so it doesn't become permanently orphaned.
+  const { url: fileUrl } = await storageUpload(filename, file);
 
   try {
     // Ensure profile exists before inserting (uploads.userId references profiles.id)
     await ensureProfile(session.user.id, session.user.name);
 
     // Record upload in DB so createTrack can verify ownership.
-    // filename stores the full Vercel Blob URL for later retrieval/deletion.
     await db.insert(uploads).values({
       userId: session.user.id,
-      filename: blob.url,
+      filename: fileUrl,
       originalName: file.name,
       size: file.size,
     });
   } catch (error) {
-    // Best-effort cleanup: remove the blob that was already uploaded
+    // Best-effort cleanup: remove the file that was already uploaded
     try {
-      await del(blob.url);
+      await storageDelete(fileUrl);
     } catch {
-      // Ignore deletion failures — the blob may already be gone
+      // Ignore deletion failures — the file may already be gone
     }
     const message =
       error instanceof Error ? error.message : "Failed to save upload";
@@ -94,8 +88,8 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({
-    filename: blob.url,
-    url: blob.url,
+    filename: fileUrl,
+    url: fileUrl,
     size: file.size,
     originalName: file.name,
   });
