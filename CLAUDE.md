@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Soundcheck** — a music virality rater web app. Users upload audio tracks, select a snippet, choose a context (TikTok, Spotify, Radio, Sync), and submit for community ratings. Raters score tracks on 4 context-specific dimensions (1–10). A credit system incentivizes rating: rate 5 tracks to earn 1 credit; credits are spent to submit tracks for rating.
+**Soundcheck** — a music virality rater web app. Users upload audio tracks, select a snippet, choose a context (TikTok, Spotify, Radio, Sync), and submit for community ratings. Raters score tracks on 4 context-specific dimensions (0–3: No, Kinda, Yes, Very). A credit system incentivizes rating: each rating earns credits based on the clip duration; credits are spent to submit tracks for rating.
 
 ## Commands
 
@@ -65,7 +65,7 @@ app/
 
 **Server Actions** (`lib/actions/`):
 - `upload.ts` — `createTrack()`: validates input, claims upload in atomic transaction, creates track
-- `rate.ts` — `submitRating()`: inserts rating, updates stats, awards credits at 5-rating threshold; `computeTrackScores()`: averages dimensions, calculates percentile
+- `rate.ts` — `submitRating()`: inserts rating, updates stats, awards duration-based credits per rating; `computeTrackScores()`: averages dimensions, calculates percentile
 - `context.ts` — `submitForRating()`: deducts credits + sets track to "collecting" in atomic transaction; `getUserProfileData()`
 - `track.ts` — `deleteTrack()`: soft-deletes track + removes blob from Vercel storage
 - `cleanup.ts` — `cleanupOrphanedUploads()`: deletes unconsumed uploads older than 24h
@@ -73,15 +73,16 @@ app/
 **Queries** (`lib/queries/`):
 - `profiles.ts` — `getProfile()`, `getTracksByUser()`, `ensureProfile()`
 - `tracks.ts` — `getNextTrackToRate()`, `getTrackById()`, `getTrackByShareToken()`
-- `ratings.ts` — `getTrackRatings()`, `computeDimensionAverages()`, `generateInsights()`
+- `ratings.ts` — `getTrackRatings()`, `computeDimensionAverages()`, `getAIInsights()`, `generateInsights()` (legacy fallback)
 
 ### Database Schema (`lib/db/schema.ts`)
 
 Beyond the better-auth tables (user, session, account, verification), the app defines:
-- **profiles** — extends users with `handle`, `credits` (default 20), `tracksUploaded`, `tracksRated`, `ratingProgress` (0–4, resets at 5)
+- **profiles** — extends users with `handle`, `credits` (default 20), `tracksUploaded`, `tracksRated`, `ratingProgress` (legacy column, no longer used by credit system)
 - **tracks** — audio tracks with `status` (draft → collecting → complete), snippet bounds, vote counts, `overallScore`, `percentile`, `shareToken`
-- **ratings** — 4 dimension scores (1–10) per track per rater, unique constraint on (trackId, raterId)
+- **ratings** — 4 dimension scores (0–3) per track per rater, unique constraint on (trackId, raterId)
 - **uploads** — temporary Vercel Blob file tracking with `consumed` flag
+- **aiInsights** — AI-generated insights per track per milestone (10/20/50), unique on `(trackId, milestone)`, stored as JSON string
 - **creditTransactions** — audit log of all credit changes with type + referenceId
 
 DB client (`lib/db/index.ts`) uses `drizzle-orm/neon-http` with `@neondatabase/serverless`. In dev, the Neon Local proxy runs via Docker on port 5434.
@@ -103,15 +104,15 @@ const { requireAuth } = useAuth()
 ### Credit System
 
 - **Start**: 20 credits on signup
-- **Earn**: Rate 5 tracks → +1 credit (tracked by `profiles.ratingProgress`, resets at threshold)
-- **Spend**: Submit for Standard (50 votes, 5 credits) or Premium (100 votes, 12 credits). Starter (20 votes) is free.
+- **Earn**: Each rating awards credits based on clip duration (`max(1, round(clipDuration / 10))`)
+- **Spend**: Starter (10 votes, 20 credits), Standard (20 votes, 40 credits), Premium (50 votes, 100 credits)
 - All changes logged in `creditTransactions` table
-- Deductions use atomic transactions with `WHERE credits >= cost` guard
+- Deductions use atomic WHERE guards (`WHERE credits >= cost`) — see Neon HTTP constraints below
 
 ### Key Constants
 
 - **Contexts** (`lib/constants/contexts.ts`): TikTok/Reels, Spotify Discover, Radio/Mainstream, Sync/Licensing — each with 4 unique rating dimensions
-- **Vote Packages** (`lib/constants/packages.ts`): Starter (20 votes, free), Standard (50 votes, 5 credits), Premium (100 votes, 12 credits)
+- **Vote Packages** (`lib/constants/packages.ts`): Starter (10 votes, 20 credits), Standard (20 votes, 40 credits), Premium (50 votes, 100 credits)
 
 ### File Upload Flow
 
@@ -121,6 +122,31 @@ const { requireAuth } = useAuth()
 4. Records in `uploads` table with `consumed=false`
 5. When track is created, upload is claimed (`consumed=true`) in atomic transaction
 6. Orphaned uploads cleaned up after 24h via cron endpoint
+
+### AI Insights System (`lib/services/ai.ts`)
+
+Fire-and-forget AI-powered insights generated at vote milestones (10, 20, 50). Called from `submitRating()` when `votesReceived` hits a milestone.
+
+- Uses Claude Opus 4.6 via AI SDK with Zod structured output
+- Generates 2–4 insights per milestone (categories: TARGET AUDIENCE, SIMILAR TRACKS, SUGGESTION, STRENGTH, OPPORTUNITY)
+- Sanitizes user-controlled text (title, tags, feedback) before prompt interpolation to prevent injection
+- Stored in `aiInsights` table with `onConflictDoNothing()` for idempotency
+- Type: `AIInsight` (exported, Zod-inferred)
+- Requires `ANTHROPIC_API_KEY` env var
+
+### Neon HTTP Driver Constraints
+
+The project uses `drizzle-orm/neon-http` which does **not** support `db.transaction()`. Instead:
+
+- **`db.batch([...queries])`** — sends multiple statements in one HTTP round-trip (sequential, but no automatic rollback)
+- **Atomic WHERE guards** — e.g. `WHERE credits >= cost`, `WHERE consumed = false`, `WHERE status = 'draft'`
+- **Ordering**: claim/validate first, then deduct; manually roll back on failure with compensating UPDATEs
+- For true ACID transactions, would need to switch to `drizzle-orm/neon-serverless` with WebSocket `Pool`
+
+### Storage Abstraction (`lib/storage.ts`)
+
+- `storageUpload(filename, file)` — Vercel Blob when `BLOB_READ_WRITE_TOKEN` is set, otherwise local filesystem (`public/uploads/`)
+- `storageDelete(urls)` — batch delete with path traversal protection via `safePublicPath()`
 
 ### Audio/Waveform (`lib/audio-context.ts`)
 
@@ -135,6 +161,7 @@ See `.env.example`:
 - `NEON_API_KEY` / `NEON_PROJECT_ID` — Neon project config
 - `BLOB_READ_WRITE_TOKEN` — Vercel Blob storage
 - `CLEANUP_SECRET` — Bearer token for cleanup cron endpoint
+- `ANTHROPIC_API_KEY` — Claude API key for AI-powered insights
 
 ## Conventions
 
@@ -143,4 +170,4 @@ See `.env.example`:
 - shadcn components use `data-slot` attributes for styling hooks; avoid manual edits to `components/ui/`
 - CSS theming uses oklch color space with CSS custom properties and `.dark` class for dark mode
 - Server-side session: `getSession()` from `lib/auth-session.ts`. Client-side: `useAuth()` from `components/auth-provider.tsx`
-- All multi-step mutations (credit deduction, rating + stats update, upload claiming) use `db.transaction()` with WHERE guards for atomicity and race-condition safety
+- All multi-step mutations use `db.batch()` or sequential queries with atomic WHERE guards (no `db.transaction()` — see Neon HTTP constraints above)

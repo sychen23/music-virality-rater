@@ -101,7 +101,7 @@ export async function generateAIInsights(
 
   // Build the dimension scores summary
   const dimensionSummary = dimensionNames
-    .map((name, i) => `  - ${name}: ${dimensionAverages[i].toFixed(1)}/10`)
+    .map((name, i) => `  - ${name}: ${dimensionAverages[i].toFixed(1)}/3`)
     .join("\n");
 
   const overallScore =
@@ -136,7 +136,7 @@ Track: "${safeTitle}"
 Genre tags: ${safeTags}
 Context: ${context?.name ?? "unknown"} — ${context?.description ?? ""}
 Votes received: ${milestone}
-Overall score: ${overallScore.toFixed(1)}/10
+Overall score: ${overallScore.toFixed(1)}/3
 
 Dimension scores (rated by ${milestone} listeners):
 ${dimensionSummary}
