@@ -52,7 +52,7 @@ export type AIInsight = z.infer<typeof aiInsightSchema>;
 
 /**
  * Generate AI-powered analytical insights for a track at a vote milestone.
- * Called as fire-and-forget when votesReceived hits 20, 50, or 100.
+ * Called as fire-and-forget when votesReceived hits 10, 20, or 50.
  *
  * This is an internal function — NOT a server action. It should only be
  * called from trusted server-side code (e.g., submitRating in rate.ts).
@@ -62,7 +62,7 @@ export async function generateAIInsights(
   milestone: number
 ): Promise<void> {
   // Guard: only generate for valid milestones
-  if (![20, 50, 100].includes(milestone)) return;
+  if (![10, 20, 50].includes(milestone)) return;
 
   // Check if insights already exist for this track + milestone (idempotency)
   const existing = await db.query.aiInsights.findFirst({
@@ -108,7 +108,7 @@ export async function generateAIInsights(
     dimensionAverages.reduce((a, b) => a + b, 0) / dimensionAverages.length;
 
   // Determine how many insights to generate based on milestone
-  const insightCount = milestone === 20 ? 3 : milestone === 50 ? 4 : 5;
+  const insightCount = milestone === 10 ? 2 : milestone === 20 ? 3 : 4;
 
   // Sanitize all user-controlled text before interpolation
   const safeTitle = sanitizeForPrompt(track.title, MAX_TITLE_LENGTH);

@@ -8,11 +8,11 @@ import { eq, sql, and } from "drizzle-orm";
 import { generateAIInsights } from "@/lib/services/ai";
 
 // --- Constants ---
-const MIN_SCORE = 1;
-const MAX_SCORE = 10;
+const MIN_SCORE = 0;
+const MAX_SCORE = 3;
 const MAX_FEEDBACK_LENGTH = 2000;
-const RATINGS_PER_CREDIT = 5;
-const CREDIT_REWARD = 1;
+const MIN_CREDIT_PER_RATING = 1;
+const CREDIT_DURATION_DIVISOR = 10; // creditsEarned = max(1, round(clipDuration / 10))
 const AI_MILESTONES = [10, 20, 50] as const;
 const SCORE_DECIMAL_PLACES = 10; // multiply/divide factor for rounding to 1 decimal
 const MIN_TRACKS_FOR_PERCENTILE = 2;
@@ -33,7 +33,7 @@ export async function submitRating(data: {
     throw new Error("Invalid track ID");
   }
 
-  // Validate dimension scores are integers between 1 and 10
+  // Validate dimension scores are integers between 0 and 3
   const dims = [data.dimension1, data.dimension2, data.dimension3, data.dimension4];
   if (dims.some((d) => !Number.isInteger(d) || d < MIN_SCORE || d > MAX_SCORE)) {
     throw new Error(`Invalid rating values. Each dimension must be an integer between ${MIN_SCORE} and ${MAX_SCORE}.`);
@@ -58,7 +58,7 @@ export async function submitRating(data: {
   // Fetch track and verify it exists, is actively collecting, and isn't owned by the rater
   const track = await db.query.tracks.findFirst({
     where: eq(tracks.id, data.trackId),
-    columns: { userId: true, status: true },
+    columns: { userId: true, status: true, snippetStart: true, snippetEnd: true },
   });
   if (!track) throw new Error("Track not found");
   if (track.status !== "collecting") {
@@ -100,12 +100,16 @@ export async function submitRating(data: {
     );
   }
 
-  // Increment rater stats
+  // Compute credits earned based on clip duration
+  const clipDuration = (track.snippetEnd ?? 0) - (track.snippetStart ?? 0);
+  const creditsEarned = Math.max(MIN_CREDIT_PER_RATING, Math.round(clipDuration / CREDIT_DURATION_DIVISOR));
+
+  // Increment rater stats and award credits
   const [updatedProfile] = await db
     .update(profiles)
     .set({
       tracksRated: sql`${profiles.tracksRated} + 1`,
-      ratingProgress: sql`${profiles.ratingProgress} + 1`,
+      credits: sql`${profiles.credits} + ${creditsEarned}`,
     })
     .where(eq(profiles.id, raterId))
     .returning();
@@ -114,42 +118,16 @@ export async function submitRating(data: {
     throw new Error("Rater profile not found");
   }
 
-  // Check if rating progress reached threshold — use atomic compare-and-set
-  // to prevent concurrent requests from both awarding a credit.
-  let creditEarned = false;
-  if (updatedProfile.ratingProgress >= RATINGS_PER_CREDIT) {
-    const [reset] = await db
-      .update(profiles)
-      .set({
-        ratingProgress: 0,
-        credits: sql`${profiles.credits} + ${CREDIT_REWARD}`,
-      })
-      .where(
-        and(
-          eq(profiles.id, raterId),
-          sql`${profiles.ratingProgress} >= ${RATINGS_PER_CREDIT}`
-        )
-      )
-      .returning({ id: profiles.id });
-
-    if (reset) {
-      creditEarned = true;
-      await db.insert(creditTransactions).values({
-        userId: raterId,
-        amount: CREDIT_REWARD,
-        type: "rating_bonus",
-      });
-    }
-  }
-
-  const newProgress = creditEarned
-    ? 0
-    : Math.max(0, Math.min(updatedProfile.ratingProgress, RATINGS_PER_CREDIT - 1));
+  // Log credit transaction
+  await db.insert(creditTransactions).values({
+    userId: raterId,
+    amount: creditsEarned,
+    type: "rating_bonus",
+  });
 
   const result = {
     updatedTrack,
-    creditEarned,
-    newProgress,
+    creditsEarned,
   };
 
   // If track reached vote goal, compute scores.
@@ -165,8 +143,7 @@ export async function submitRating(data: {
   }
 
   return {
-    creditEarned: result.creditEarned,
-    newProgress: result.newProgress,
+    creditsEarned: result.creditsEarned,
   };
 }
 
