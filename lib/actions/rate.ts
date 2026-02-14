@@ -7,6 +7,16 @@ import { headers } from "next/headers";
 import { eq, sql, and } from "drizzle-orm";
 import { generateAIInsights } from "@/lib/services/ai";
 
+// --- Constants ---
+const MIN_SCORE = 1;
+const MAX_SCORE = 10;
+const MAX_FEEDBACK_LENGTH = 2000;
+const RATINGS_PER_CREDIT = 5;
+const CREDIT_REWARD = 1;
+const AI_MILESTONES = [10, 20, 50] as const;
+const SCORE_DECIMAL_PLACES = 10; // multiply/divide factor for rounding to 1 decimal
+const MIN_TRACKS_FOR_PERCENTILE = 2;
+
 export async function submitRating(data: {
   trackId: string;
   dimension1: number;
@@ -25,14 +35,14 @@ export async function submitRating(data: {
 
   // Validate dimension scores are integers between 1 and 10
   const dims = [data.dimension1, data.dimension2, data.dimension3, data.dimension4];
-  if (dims.some((d) => !Number.isInteger(d) || d < 1 || d > 10)) {
-    throw new Error("Invalid rating values. Each dimension must be an integer between 1 and 10.");
+  if (dims.some((d) => !Number.isInteger(d) || d < MIN_SCORE || d > MAX_SCORE)) {
+    throw new Error(`Invalid rating values. Each dimension must be an integer between ${MIN_SCORE} and ${MAX_SCORE}.`);
   }
 
   // Validate feedback if provided
   if (data.feedback !== undefined && data.feedback !== null) {
-    if (typeof data.feedback !== "string" || data.feedback.length > 2000) {
-      throw new Error("Feedback must be a string of 2000 characters or fewer.");
+    if (typeof data.feedback !== "string" || data.feedback.length > MAX_FEEDBACK_LENGTH) {
+      throw new Error(`Feedback must be a string of ${MAX_FEEDBACK_LENGTH} characters or fewer.`);
     }
   }
 
@@ -78,12 +88,11 @@ export async function submitRating(data: {
     .where(eq(tracks.id, data.trackId))
     .returning();
 
-  // Fire-and-forget AI insight generation at vote milestones (20, 50, 100).
+  // Fire-and-forget AI insight generation at vote milestones.
   // Only triggers if the vote package includes that many votes.
-  const AI_MILESTONES = [20, 50, 100] as const;
   if (
     updatedTrack &&
-    AI_MILESTONES.includes(updatedTrack.votesReceived as 20 | 50 | 100) &&
+    (AI_MILESTONES as readonly number[]).includes(updatedTrack.votesReceived) &&
     updatedTrack.votesReceived <= updatedTrack.votesRequested
   ) {
     generateAIInsights(data.trackId, updatedTrack.votesReceived).catch(
@@ -105,20 +114,20 @@ export async function submitRating(data: {
     throw new Error("Rater profile not found");
   }
 
-  // Check if rating progress reached 5 — use atomic compare-and-set
+  // Check if rating progress reached threshold — use atomic compare-and-set
   // to prevent concurrent requests from both awarding a credit.
   let creditEarned = false;
-  if (updatedProfile.ratingProgress >= 5) {
+  if (updatedProfile.ratingProgress >= RATINGS_PER_CREDIT) {
     const [reset] = await db
       .update(profiles)
       .set({
         ratingProgress: 0,
-        credits: sql`${profiles.credits} + 1`,
+        credits: sql`${profiles.credits} + ${CREDIT_REWARD}`,
       })
       .where(
         and(
           eq(profiles.id, raterId),
-          sql`${profiles.ratingProgress} >= 5`
+          sql`${profiles.ratingProgress} >= ${RATINGS_PER_CREDIT}`
         )
       )
       .returning({ id: profiles.id });
@@ -127,7 +136,7 @@ export async function submitRating(data: {
       creditEarned = true;
       await db.insert(creditTransactions).values({
         userId: raterId,
-        amount: 1,
+        amount: CREDIT_REWARD,
         type: "rating_bonus",
       });
     }
@@ -135,7 +144,7 @@ export async function submitRating(data: {
 
   const newProgress = creditEarned
     ? 0
-    : Math.max(0, Math.min(updatedProfile.ratingProgress, 4));
+    : Math.max(0, Math.min(updatedProfile.ratingProgress, RATINGS_PER_CREDIT - 1));
 
   const result = {
     updatedTrack,
@@ -185,7 +194,7 @@ async function computeTrackScores(trackId: string) {
 
   // Round once to 1 decimal place so the percentile comparison uses
   // the same precision as stored overallScore values from other tracks.
-  const overall = Math.round(((d1 + d2 + d3 + d4) / 4) * 10) / 10;
+  const overall = Math.round(((d1 + d2 + d3 + d4) / 4) * SCORE_DECIMAL_PLACES) / SCORE_DECIMAL_PLACES;
 
   // Get track to find context for percentile
   const trackData = await db.query.tracks.findFirst({
@@ -213,7 +222,7 @@ async function computeTrackScores(trackId: string) {
     // that were already marked "complete").
     scores.push(overall);
 
-    if (scores.length >= 2) {
+    if (scores.length >= MIN_TRACKS_FOR_PERCENTILE) {
       const below = scores.filter((s) => s < overall).length;
       percentile = Math.round((below / (scores.length - 1)) * 100);
     }
