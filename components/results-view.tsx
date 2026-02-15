@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { ScoreBar } from "@/components/score-bar";
 import { InsightCard } from "@/components/insight-card";
+import { CrowdScoreCard } from "@/components/crowd-score-card";
 import { AudioPlayer } from "@/components/audio-player";
 import { formatPercentile } from "@/lib/utils";
 import type { Dimension } from "@/lib/constants/contexts";
@@ -122,27 +123,22 @@ export function ResultsView({
         </div>
       )}
 
-      {/* Overall Score — Preliminary (collecting with votes) */}
-      {!isComplete && preliminaryScore !== null && (
-        <div className="mb-6 rounded-2xl border-2 border-dashed border-primary/20 p-6 text-center">
-          <div className="mb-1 flex items-center justify-center gap-2">
-            <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-green-500" />
-            </span>
-            <p className="text-sm font-medium text-muted-foreground">Preliminary Score</p>
-          </div>
-          <p className="mt-1 text-5xl font-bold text-primary/70">
-            {Math.round((preliminaryScore / 3) * 100)}%
-          </p>
-          <p className="mt-2 text-xs text-muted-foreground">
-            Based on {track.votesReceived} {track.votesReceived === 1 ? "vote" : "votes"} — may shift as more come in
-          </p>
+      {/* Crowd Score Card (collecting with votes) */}
+      {!isComplete && hasVotes && preliminaryScore !== null && (
+        <div className="mb-6">
+          <CrowdScoreCard
+            contextId={contextId}
+            score={preliminaryScore}
+            votesReceived={track.votesReceived}
+            votesRequested={track.votesRequested}
+            dimensions={dimensions}
+            dimensionAverages={dimensionAverages}
+          />
         </div>
       )}
 
-      {/* Dimension Breakdown */}
-      {hasVotes && (
+      {/* Dimension Breakdown (complete only) */}
+      {isComplete && hasVotes && (
         <div className="mb-6">
           <div className="space-y-3">
             {dimensions.map((dim, i) => (
