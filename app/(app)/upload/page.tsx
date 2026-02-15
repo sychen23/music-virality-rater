@@ -293,7 +293,11 @@ export default function UploadPage() {
               setIsDragOver(true);
             }}
             onDragLeave={() => setIsDragOver(false)}
-            onDrop={insufficientCredits ? undefined : handleDrop}
+            onDrop={(e) => {
+              e.preventDefault();
+              setIsDragOver(false);
+              if (!insufficientCredits) handleDrop(e);
+            }}
             onClick={() => {
               if (insufficientCredits) return;
               requireAuth(() => fileInputRef.current?.click());

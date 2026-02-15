@@ -1,12 +1,10 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { tracks, profiles, creditTransactions } from "@/lib/db/schema";
+import { profiles } from "@/lib/db/schema";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
-import { eq, sql, and, gte } from "drizzle-orm";
-import { VOTE_PACKAGES } from "@/lib/constants/packages";
-import { getContextById } from "@/lib/constants/contexts";
+import { eq } from "drizzle-orm";
 
 export async function getUserProfileData() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -20,87 +18,4 @@ export async function getUserProfileData() {
   if (!profile) throw new Error("Profile not found");
 
   return { credits: profile.credits };
-}
-
-export async function submitForRating(data: {
-  trackId: string;
-  contextId: string;
-  packageIndex: number;
-}) {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) throw new Error("Unauthorized");
-
-  // Validate contextId against the known CONTEXTS list
-  if (!getContextById(data.contextId)) {
-    throw new Error("Invalid context");
-  }
-
-  // Look up package server-side — never trust client-supplied cost/votes
-  const votePackage = VOTE_PACKAGES[data.packageIndex];
-  if (!votePackage) throw new Error("Invalid vote package");
-
-  const { votes: votesRequested, credits: creditsCost } = votePackage;
-  const userId = session.user.id;
-
-  // Claim the track FIRST: atomically update only if the user owns it, it's
-  // still a draft, and not deleted. This must happen before credit deduction
-  // so that if the track is invalid / already submitted, no credits are lost.
-  const [updatedTrack] = await db
-    .update(tracks)
-    .set({
-      contextId: data.contextId,
-      votesRequested,
-      status: "collecting",
-    })
-    .where(
-      and(
-        eq(tracks.id, data.trackId),
-        eq(tracks.userId, userId),
-        eq(tracks.status, "draft"),
-        eq(tracks.isDeleted, false),
-      )
-    )
-    .returning({ id: tracks.id });
-
-  if (!updatedTrack) {
-    throw new Error("Track not found or already submitted");
-  }
-
-  // Now deduct credits. The track is already claimed, so if this fails the
-  // worst case is a track in "collecting" with no payment — we roll it back.
-  if (creditsCost > 0) {
-    const [deducted] = await db
-      .update(profiles)
-      .set({ credits: sql`${profiles.credits} - ${creditsCost}` })
-      .where(
-        and(eq(profiles.id, userId), gte(profiles.credits, creditsCost))
-      )
-      .returning({ id: profiles.id });
-
-    if (!deducted) {
-      // Roll back the track claim — revert to draft so the user can retry.
-      // Guarded with status = 'collecting' to avoid overwriting a concurrent
-      // state change (e.g. if a rater somehow rated it in the meantime).
-      await db
-        .update(tracks)
-        .set({ status: "draft", contextId: null, votesRequested: 0 })
-        .where(
-          and(
-            eq(tracks.id, data.trackId),
-            eq(tracks.status, "collecting"),
-          )
-        );
-      throw new Error("Insufficient credits");
-    }
-
-    // Record credit transaction
-    await db.insert(creditTransactions).values({
-      userId,
-      amount: -creditsCost,
-      type: "track_submit",
-      referenceId: data.trackId,
-    });
-  }
-
-  return { success: true };
 }

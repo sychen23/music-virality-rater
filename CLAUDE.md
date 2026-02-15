@@ -37,7 +37,7 @@ bunx shadcn@latest add <component-name>
 - **Drizzle ORM** with `@neondatabase/serverless` (neon-http driver), migrations in `db/migrations/`
 - **better-auth** with Google OAuth
 - **Vercel Blob** for audio file storage
-- **AI SDK** (`ai` + `@ai-sdk/react`) with Zod for validation
+- **AI SDK** (`ai` + `@ai-sdk/react`) with **Zod v4** for validation (API differs from v3)
 - **bun** as the package manager (lockfile: `bun.lock`)
 
 ## Architecture
@@ -65,7 +65,7 @@ app/
 ### Data Layer
 
 **Server Actions** (`lib/actions/`):
-- `upload.ts` — `createTrack()`: validates input, claims upload in atomic transaction, creates track
+- `upload.ts` — `createTrack()`: legacy draft flow; `createAndSubmitTrack()`: unified flow that validates input, claims upload, inserts track as "collecting", and deducts credits atomically (with rollback on failure)
 - `rate.ts` — `submitRating()`: inserts rating, updates stats, awards duration-based credits per rating; `computeTrackScores()`: averages dimensions, calculates percentile
 - `context.ts` — `submitForRating()`: deducts credits + sets track to "collecting" in atomic transaction; `getUserProfileData()`
 - `track.ts` — `deleteTrack()`: soft-deletes track + removes blob from Vercel storage
@@ -73,7 +73,7 @@ app/
 
 **Queries** (`lib/queries/`):
 - `profiles.ts` — `getProfile()`, `getTracksByUser()`, `ensureProfile()`
-- `tracks.ts` — `getNextTrackToRate()`, `getTrackById()`, `getTrackByShareToken()`
+- `tracks.ts` — `getNextTrackToRate()` (NOT EXISTS subquery for unrated filter), `getTrackById()`, `getTrackByShareToken()`, `getTopTracks()`
 - `ratings.ts` — `getTrackRatings()`, `computeDimensionAverages()`, `getAIInsights()`, `generateInsights()` (legacy fallback)
 
 ### Database Schema (`lib/db/schema.ts`)
@@ -179,3 +179,5 @@ See `.env.example`:
 - Server-side session: `getSession()` from `lib/auth-session.ts`. Client-side: `useAuth()` from `components/auth-provider.tsx`
 - All multi-step mutations use `db.batch()` or sequential queries with atomic WHERE guards (no `db.transaction()` — see Neon HTTP constraints above)
 - `proxy.ts` exists at project root but is dead code (references `/dashboard` routes that don't exist) — ignore it
+- Root layout applies `pb-20` for bottom nav clearance — account for this when adding full-height layouts
+- No test infrastructure or CI/CD — project has no tests, no vitest/jest config, no `.github/workflows`

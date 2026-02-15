@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     // Ensure profile exists before inserting (uploads.userId references profiles.id)
     await ensureProfile(session.user.id, session.user.name);
 
-    // Record upload in DB so createTrack can verify ownership.
+    // Record upload in DB so createAndSubmitTrack can verify ownership.
     await db.insert(uploads).values({
       userId: session.user.id,
       filename: fileUrl,

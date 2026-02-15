@@ -25,8 +25,8 @@ export async function deleteTrack(trackId: string) {
 
   // Re-assert ownership and non-collecting status in the UPDATE itself
   // to close the TOCTOU window between the SELECT above and this write.
-  // If a concurrent submitForRating changed status to "collecting" after
-  // our SELECT, the WHERE won't match and no rows are updated.
+  // If a concurrent request changed status to "collecting" after our
+  // SELECT, the WHERE won't match and no rows are updated.
   const [updated] = await db
     .update(tracks)
     .set({ isDeleted: true })

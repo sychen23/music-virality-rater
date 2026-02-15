@@ -104,73 +104,10 @@ function validateTrackInputs(data: {
 }
 
 /**
- * Legacy action: creates a draft track without context or credit deduction.
- * Kept for backward compatibility.
- */
-export async function createTrack(data: {
-  title: string;
-  audioFilename: string;
-  duration: number;
-  genreTags: string[];
-  snippetStart: number;
-  snippetEnd: number;
-}) {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) throw new Error("Unauthorized");
-
-  const userId = session.user.id;
-
-  validateTrackInputs(data);
-
-  await ensureProfile(userId, session.user.name);
-
-  const shareToken = randomBytes(8).toString("hex");
-
-  const [claimed] = await db
-    .update(uploads)
-    .set({ consumed: true })
-    .where(
-      and(
-        eq(uploads.filename, data.audioFilename),
-        eq(uploads.userId, userId),
-        eq(uploads.consumed, false),
-      ),
-    )
-    .returning({ id: uploads.id });
-
-  if (!claimed) {
-    throw new Error(
-      "Audio file not found. Please upload the file before creating a track.",
-    );
-  }
-
-  const [track] = await db
-    .insert(tracks)
-    .values({
-      userId,
-      title: data.title,
-      audioFilename: data.audioFilename,
-      duration: data.duration,
-      genreTags: data.genreTags,
-      snippetStart: data.snippetStart,
-      snippetEnd: data.snippetEnd,
-      shareToken,
-      status: "draft",
-    })
-    .returning();
-
-  await db
-    .update(profiles)
-    .set({ tracksUploaded: sql`${profiles.tracksUploaded} + 1` })
-    .where(eq(profiles.id, userId));
-
-  return track;
-}
-
-/**
  * Unified action: uploads, sets context, production stage, and deducts credits
- * in a single call. The track goes directly to "collecting" status — no draft
- * intermediate. This prevents orphaned uploads when users lack credits.
+ * in a single call. The track is inserted as "draft" first, then atomically
+ * transitioned to "collecting" only after credit deduction succeeds. This
+ * ensures the track is never visible to raters until payment is secured.
  */
 export async function createAndSubmitTrack(data: {
   title: string;
@@ -233,7 +170,7 @@ export async function createAndSubmitTrack(data: {
     );
   }
 
-  // 2. Insert track directly as "collecting"
+  // 2. Insert track as draft — not yet visible to raters
   const [track] = await db
     .insert(tracks)
     .values({
@@ -245,10 +182,8 @@ export async function createAndSubmitTrack(data: {
       snippetStart: data.snippetStart,
       snippetEnd: data.snippetEnd,
       productionStage: data.productionStage,
-      contextId: data.contextId,
-      votesRequested,
       shareToken,
-      status: "collecting",
+      status: "draft",
     })
     .returning();
 
@@ -261,11 +196,8 @@ export async function createAndSubmitTrack(data: {
       .returning({ id: profiles.id });
 
     if (!deducted) {
-      // Roll back: delete the track and unclaim the upload
-      await db
-        .update(tracks)
-        .set({ isDeleted: true })
-        .where(eq(tracks.id, track.id));
+      // Credit deduction failed — track stays as harmless draft.
+      // Unclaim the upload so it can be reused.
       await db
         .update(uploads)
         .set({ consumed: false })
@@ -282,7 +214,30 @@ export async function createAndSubmitTrack(data: {
     });
   }
 
-  // 4. Increment tracks_uploaded
+  // 4. Atomically transition to "collecting" — only if still a draft.
+  // This makes the track visible to raters only after credits are secured.
+  const [activated] = await db
+    .update(tracks)
+    .set({
+      status: "collecting",
+      contextId: data.contextId,
+      votesRequested,
+    })
+    .where(and(eq(tracks.id, track.id), eq(tracks.status, "draft")))
+    .returning({ id: tracks.id });
+
+  if (!activated) {
+    // Shouldn't happen — compensate by refunding credits
+    if (creditsCost > 0) {
+      await db
+        .update(profiles)
+        .set({ credits: sql`${profiles.credits} + ${creditsCost}` })
+        .where(eq(profiles.id, userId));
+    }
+    throw new Error("Failed to activate track");
+  }
+
+  // 5. Increment tracks_uploaded
   await db
     .update(profiles)
     .set({ tracksUploaded: sql`${profiles.tracksUploaded} + 1` })
