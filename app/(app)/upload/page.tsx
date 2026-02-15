@@ -16,6 +16,7 @@ import { useAuth } from "@/components/auth-provider";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { CloudUploadIcon, Delete02Icon } from "@hugeicons/core-free-icons";
 import { AdUnit } from "@/components/ad-unit";
+import { Logo } from "@/components/logo";
 
 export default function UploadPage() {
   const router = useRouter();
@@ -160,11 +161,14 @@ export default function UploadPage() {
 
   return (
     <div className="mx-auto max-w-lg px-4 py-6">
-      <h1 className="mb-6 text-2xl font-bold">Upload Your Track</h1>
+      <div className="mb-6 flex justify-center">
+        <Logo className="text-2xl" />
+      </div>
 
       {!file ? (
         <>
           {/* Drop zone */}
+          <h1 className="mb-4 text-2xl font-bold">Upload Your Track</h1>
           <div
             onDragOver={(e) => {
               e.preventDefault();

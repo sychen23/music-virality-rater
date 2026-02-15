@@ -129,7 +129,7 @@ export const ratings = pgTable(
     raterId: text("rater_id")
       .notNull()
       .references(() => profiles.id),
-    dimension1: integer("dimension_1").notNull(), // 1-10
+    dimension1: integer("dimension_1").notNull(), // 0-3 (No, Kinda, Yes, Very)
     dimension2: integer("dimension_2").notNull(),
     dimension3: integer("dimension_3").notNull(),
     dimension4: integer("dimension_4").notNull(),
@@ -150,6 +150,20 @@ export const uploads = pgTable("uploads", {
   consumed: boolean("consumed").notNull().default(false), // true once linked to a track
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
+
+export const aiInsights = pgTable(
+  "ai_insights",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    trackId: uuid("track_id")
+      .notNull()
+      .references(() => tracks.id),
+    milestone: integer("milestone").notNull(), // 5, 10, 20, or 50
+    insights: text("insights").notNull(), // JSON string of insight array
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [unique("ai_insights_track_milestone").on(t.trackId, t.milestone)]
+);
 
 export const creditTransactions = pgTable("credit_transactions", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -180,5 +194,12 @@ export const accountRelations = relations(account, ({ one }) => ({
   user: one(user, {
     fields: [account.userId],
     references: [user.id],
+  }),
+}));
+
+export const aiInsightsRelations = relations(aiInsights, ({ one }) => ({
+  track: one(tracks, {
+    fields: [aiInsights.trackId],
+    references: [tracks.id],
   }),
 }));

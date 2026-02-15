@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { ResultsView } from "@/components/results-view";
 import { deleteTrack } from "@/lib/actions/track";
 import type { Dimension } from "@/lib/constants/contexts";
+import type { AIInsight } from "@/lib/services/ai";
 
 interface ResultsViewWrapperProps {
   track: {
@@ -23,6 +24,7 @@ interface ResultsViewWrapperProps {
   dimensions: Dimension[];
   dimensionAverages: number[];
   insights: { title: string; description: string; variant: "success" | "warning" | "default" }[];
+  aiInsights?: AIInsight[] | null;
   isOwner: boolean;
 }
 
@@ -31,6 +33,7 @@ export function ResultsViewWrapper({
   dimensions,
   dimensionAverages,
   insights,
+  aiInsights,
   isOwner,
 }: ResultsViewWrapperProps) {
   const router = useRouter();
@@ -52,6 +55,7 @@ export function ResultsViewWrapper({
       dimensions={dimensions}
       dimensionAverages={dimensionAverages}
       insights={insights}
+      aiInsights={aiInsights}
       isOwner={isOwner}
       onDelete={handleDelete}
     />

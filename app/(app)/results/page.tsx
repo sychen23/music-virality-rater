@@ -4,6 +4,7 @@ import { getTracksByUser } from "@/lib/queries/profiles";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { SignInPrompt } from "@/components/sign-in-prompt";
+import { Logo } from "@/components/logo";
 
 export default async function ResultsListPage() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -26,6 +27,7 @@ export default async function ResultsListPage() {
   if (completedTracks.length === 0) {
     return (
       <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4 px-4 text-center">
+        <Logo className="text-2xl" />
         <p className="text-lg font-medium">No results yet</p>
         <p className="text-sm text-muted-foreground">
           Upload a track and submit it for rating to see results here.

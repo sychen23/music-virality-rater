@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { getTrackById } from "@/lib/queries/tracks";
-import { getTrackRatings, computeDimensionAverages, generateInsights } from "@/lib/queries/ratings";
+import { getTrackRatings, computeDimensionAverages, generateInsights, getAIInsights } from "@/lib/queries/ratings";
 import { getContextById } from "@/lib/constants/contexts";
 import { ResultsViewWrapper } from "./results-wrapper";
 import { SignInPrompt } from "@/components/sign-in-prompt";
@@ -35,7 +35,10 @@ export default async function ResultsPage({
 
   const context = track.contextId ? getContextById(track.contextId) : null;
   const dimensions = context?.dimensions ?? [];
-  const trackRatings = await getTrackRatings(trackId);
+  const [trackRatings, aiInsights] = await Promise.all([
+    getTrackRatings(trackId),
+    getAIInsights(trackId),
+  ]);
   const dimensionAverages = computeDimensionAverages(trackRatings);
   const dimensionNames = dimensions.map((d) => d.name);
   const insights = generateInsights(dimensionAverages, dimensionNames);
@@ -60,6 +63,7 @@ export default async function ResultsPage({
       dimensions={dimensions}
       dimensionAverages={dimensionAverages}
       insights={insights}
+      aiInsights={aiInsights}
       isOwner={isOwner}
     />
   );

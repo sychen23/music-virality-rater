@@ -14,12 +14,12 @@ export async function getUserProfileData() {
 
   const profile = await db.query.profiles.findFirst({
     where: eq(profiles.id, session.user.id),
-    columns: { credits: true, ratingProgress: true },
+    columns: { credits: true },
   });
 
   if (!profile) throw new Error("Profile not found");
 
-  return { credits: profile.credits, ratingProgress: profile.ratingProgress };
+  return { credits: profile.credits };
 }
 
 export async function submitForRating(data: {

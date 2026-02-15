@@ -6,11 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { AudioPlayer } from "@/components/audio-player";
-import { RatingSliderCard } from "@/components/rating-slider-card";
-import { EarnProgressBar } from "@/components/earn-progress-bar";
+import { RatingTrackColumns } from "@/components/rating-track-columns";
 import { useAuth } from "@/components/auth-provider";
 import { getContextById, type Dimension } from "@/lib/constants/contexts";
 import { submitRating } from "@/lib/actions/rate";
+import { Logo } from "@/components/logo";
 
 interface TrackToRate {
   id: string;
@@ -26,11 +26,10 @@ export default function RatePage() {
   const [track, setTrack] = useState<TrackToRate | null>(null);
   const [loading, setLoading] = useState(true);
   const [noTracks, setNoTracks] = useState(false);
-  const [ratings, setRatings] = useState<number[]>([5, 5, 5, 5]);
+  const [ratings, setRatings] = useState<(number | null)[]>([null, null, null, null]);
   const [feedback, setFeedback] = useState("");
   const [hasListened, setHasListened] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [ratingProgress, setRatingProgress] = useState(0);
   const [trackCount, setTrackCount] = useState(0);
 
   const [needsAuth, setNeedsAuth] = useState(false);
@@ -47,7 +46,7 @@ export default function RatePage() {
         setNoTracks(true);
         setTrack(null);
         setHasListened(false);
-        setRatings([5, 5, 5, 5]);
+        setRatings([null, null, null, null]);
         setFeedback("");
       } else if (!res.ok) {
         throw new Error("Failed to load track");
@@ -57,10 +56,9 @@ export default function RatePage() {
         // Reset form state only after a successful fetch so a network
         // error doesn't wipe the user's in-progress ratings.
         setHasListened(false);
-        setRatings([5, 5, 5, 5]);
+        setRatings([null, null, null, null]);
         setFeedback("");
         setTrack(data.track);
-        setRatingProgress(data.ratingProgress ?? 0);
         setNoTracks(false);
         setTrackCount((c) => c + 1);
       }
@@ -82,27 +80,24 @@ export default function RatePage() {
   const context = track?.contextId ? getContextById(track.contextId) : null;
   const dimensions: Dimension[] = context?.dimensions ?? [];
 
+  const allRated = ratings.every((r) => r !== null);
+
   const handleSubmit = () => {
-    if (!track || !hasListened) return;
+    if (!track || !hasListened || !allRated) return;
 
     requireAuth(async () => {
       setSubmitting(true);
       try {
         const result = await submitRating({
           trackId: track.id,
-          dimension1: ratings[0],
-          dimension2: ratings[1],
-          dimension3: ratings[2],
-          dimension4: ratings[3],
+          dimension1: ratings[0] as number,
+          dimension2: ratings[1] as number,
+          dimension3: ratings[2] as number,
+          dimension4: ratings[3] as number,
           feedback: feedback.trim() || undefined,
         });
 
-        if (result.creditEarned) {
-          toast.success("You earned +1 credit!");
-        } else {
-          toast.success("Rating submitted!");
-        }
-        setRatingProgress(result.newProgress);
+        toast.success(`Rating submitted! +${result.creditsEarned} credits`);
         fetchTrack();
       } catch (err) {
         toast.error(
@@ -139,6 +134,7 @@ export default function RatePage() {
   if (noTracks || !track) {
     return (
       <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4 px-4 text-center">
+        <Logo className="text-2xl" />
         <p className="text-lg font-medium">No tracks to rate right now</p>
         <p className="text-sm text-muted-foreground">
           Check back later — new tracks are submitted all the time!
@@ -149,11 +145,12 @@ export default function RatePage() {
 
   return (
     <div className="mx-auto max-w-lg px-4 py-6">
-      {/* Progress */}
-      <EarnProgressBar ratingProgress={ratingProgress} />
+      <div className="mb-6 flex justify-center">
+        <Logo className="text-2xl" />
+      </div>
 
       {/* Context badge + track count */}
-      <div className="mt-4 mb-4 flex items-center justify-between">
+      <div className="mb-4 flex items-center justify-between">
         {context && (
           <Badge variant="secondary">
             {context.icon} {context.name}
@@ -180,20 +177,13 @@ export default function RatePage() {
         )}
       </div>
 
-      {/* Rating sliders */}
-      <div className="mb-6 space-y-3">
-        {dimensions.map((dim, i) => (
-          <RatingSliderCard
-            key={dim.key}
-            dimension={dim}
-            value={ratings[i]}
-            onChange={(v) => {
-              const next = [...ratings];
-              next[i] = v;
-              setRatings(next);
-            }}
-          />
-        ))}
+      {/* Rating columns */}
+      <div className="mb-6">
+        <RatingTrackColumns
+          dimensions={dimensions}
+          values={ratings}
+          onChange={setRatings}
+        />
       </div>
 
       {/* Feedback */}
@@ -220,10 +210,10 @@ export default function RatePage() {
         </Button>
         <Button
           className="flex-1"
-          disabled={!hasListened || submitting}
+          disabled={!hasListened || !allRated || submitting}
           onClick={handleSubmit}
         >
-          {submitting ? "Submitting..." : "Submit & Next"}
+          {submitting ? "Submitting..." : !allRated ? "Rate all dimensions" : "Submit & Next"}
         </Button>
       </div>
     </div>

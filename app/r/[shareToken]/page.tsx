@@ -1,5 +1,5 @@
 import { getTrackByShareToken } from "@/lib/queries/tracks";
-import { getTrackRatings, computeDimensionAverages, generateInsights } from "@/lib/queries/ratings";
+import { getTrackRatings, computeDimensionAverages, generateInsights, getAIInsights } from "@/lib/queries/ratings";
 import { getContextById } from "@/lib/constants/contexts";
 import { ResultsView } from "@/components/results-view";
 
@@ -21,7 +21,10 @@ export default async function PublicResultsPage({
 
   const context = track.contextId ? getContextById(track.contextId) : null;
   const dimensions = context?.dimensions ?? [];
-  const trackRatings = await getTrackRatings(track.id);
+  const [trackRatings, aiInsights] = await Promise.all([
+    getTrackRatings(track.id),
+    getAIInsights(track.id),
+  ]);
   const dimensionAverages = computeDimensionAverages(trackRatings);
   const dimensionNames = dimensions.map((d) => d.name);
   const insights = generateInsights(dimensionAverages, dimensionNames);
@@ -44,6 +47,7 @@ export default async function PublicResultsPage({
       dimensions={dimensions}
       dimensionAverages={dimensionAverages}
       insights={insights}
+      aiInsights={aiInsights}
     />
   );
 }

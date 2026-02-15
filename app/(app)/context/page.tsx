@@ -6,7 +6,6 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ContextCard } from "@/components/context-card";
 import { VotePackageSelector } from "@/components/vote-package-selector";
-import { EarnProgressBar } from "@/components/earn-progress-bar";
 import { CONTEXTS, type Context } from "@/lib/constants/contexts";
 import { VOTE_PACKAGES } from "@/lib/constants/packages";
 import { useAuth } from "@/components/auth-provider";
@@ -23,7 +22,6 @@ function ContextPageContent() {
   const [submitting, setSubmitting] = useState(false);
 
   const [userCredits, setUserCredits] = useState<number | null>(null);
-  const [ratingProgress, setRatingProgress] = useState(0);
   const [profileError, setProfileError] = useState(false);
 
   // Only fetch profile data when logged in. Use user.id as the dependency
@@ -33,14 +31,12 @@ function ContextPageContent() {
   useEffect(() => {
     if (!userId) {
       setUserCredits(null);
-      setRatingProgress(0);
       setProfileError(false);
       return;
     }
     getUserProfileData()
-      .then(({ credits, ratingProgress }) => {
+      .then(({ credits }) => {
         setUserCredits(credits);
-        setRatingProgress(ratingProgress);
         setProfileError(false);
       })
       .catch(() => {
@@ -138,12 +134,9 @@ function ContextPageContent() {
       </div>
 
       {/* Earn callout */}
-      <div className="mb-6">
-        <EarnProgressBar ratingProgress={ratingProgress} />
-        <p className="mt-2 text-xs text-muted-foreground text-center">
-          Earn votes by rating other artists&apos; tracks
-        </p>
-      </div>
+      <p className="mb-6 text-xs text-muted-foreground text-center">
+        Earn credits by rating other artists&apos; tracks
+      </p>
 
       {/* Auth / profile status */}
       {!userId && (

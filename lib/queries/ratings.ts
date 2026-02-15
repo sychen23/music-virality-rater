@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
-import { ratings } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { ratings, aiInsights } from "@/lib/db/schema";
+import { eq, desc } from "drizzle-orm";
+import type { AIInsight } from "@/lib/services/ai";
 
 export async function getTrackRatings(trackId: string) {
   return db.query.ratings.findMany({
@@ -46,20 +47,20 @@ export function generateInsights(
 
   insights.push({
     title: `Strongest: ${dimensionNames[maxIdx]}`,
-    description: `Your ${dimensionNames[maxIdx].toLowerCase()} scored ${dimensionAverages[maxIdx].toFixed(1)}/10. This is your track's standout quality — lean into it in your promotion strategy.`,
+    description: `Your ${dimensionNames[maxIdx].toLowerCase()} scored ${Math.round((dimensionAverages[maxIdx] / 3) * 100)}%. This is your track's standout quality — lean into it in your promotion strategy.`,
     variant: "success",
   });
 
-  if (dimensionAverages[minIdx] < 6) {
+  if (dimensionAverages[minIdx] < 1.8) {
     insights.push({
       title: `Room to Grow: ${dimensionNames[minIdx]}`,
-      description: `${dimensionNames[minIdx]} scored ${dimensionAverages[minIdx].toFixed(1)}/10. Consider reworking this aspect — small improvements here could significantly boost your overall virality score.`,
+      description: `${dimensionNames[minIdx]} scored ${Math.round((dimensionAverages[minIdx] / 3) * 100)}%. Consider reworking this aspect — small improvements here could significantly boost your overall virality score.`,
       variant: "warning",
     });
   }
 
   const overall = dimensionAverages.reduce((a, b) => a + b, 0) / dimensionAverages.length;
-  if (overall >= 7) {
+  if (overall >= 2.1) {
     insights.push({
       title: "High Potential",
       description: "Your track scores well across all dimensions. It has strong viral potential — focus on distribution and timing for maximum impact.",
@@ -74,4 +75,25 @@ export function generateInsights(
   }
 
   return insights;
+}
+
+/**
+ * Fetch the latest AI-generated insights for a track.
+ * Returns insights from the highest milestone reached, or null if none exist.
+ */
+export async function getAIInsights(trackId: string): Promise<AIInsight[] | null> {
+  const rows = await db.query.aiInsights.findMany({
+    where: eq(aiInsights.trackId, trackId),
+    orderBy: [desc(aiInsights.milestone)],
+    limit: 1,
+  });
+
+  if (rows.length === 0) return null;
+
+  try {
+    const parsed = JSON.parse(rows[0].insights) as AIInsight[];
+    return parsed.length > 0 ? parsed : null;
+  } catch {
+    return null;
+  }
 }
