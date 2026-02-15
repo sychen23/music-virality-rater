@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cleanupOrphanedUploads } from "@/lib/actions/cleanup";
+import {
+  cleanupOrphanedUploads,
+  cleanupOrphanedDrafts,
+} from "@/lib/actions/cleanup";
 
 export async function POST(request: NextRequest) {
   const secret = process.env.CLEANUP_SECRET;
@@ -15,7 +18,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const deleted = await cleanupOrphanedUploads();
+  const [deletedUploads, deletedDrafts] = await Promise.all([
+    cleanupOrphanedUploads(),
+    cleanupOrphanedDrafts(),
+  ]);
 
-  return NextResponse.json({ deleted });
+  return NextResponse.json({
+    deletedUploads,
+    deletedDrafts,
+  });
 }

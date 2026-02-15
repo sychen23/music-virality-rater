@@ -11,10 +11,6 @@ interface LeaderboardTrack {
   overallScore: number | null;
   contextId: string | null;
   votesReceived: number;
-  audioFilename: string;
-  snippetStart: number | null;
-  snippetEnd: number | null;
-  productionStage: string | null;
 }
 
 function RankBadge({ rank }: { rank: number }) {

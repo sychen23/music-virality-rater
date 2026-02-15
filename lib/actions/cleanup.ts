@@ -1,9 +1,10 @@
 import { db } from "@/lib/db";
-import { uploads } from "@/lib/db/schema";
+import { uploads, tracks } from "@/lib/db/schema";
 import { and, eq, lte, inArray } from "drizzle-orm";
 import { storageDelete } from "@/lib/storage";
 
 const ORPHAN_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
+const DRAFT_ORPHAN_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 /**
  * Delete unconsumed uploads older than 24 hours.
@@ -44,6 +45,50 @@ export async function cleanupOrphanedUploads(): Promise<number> {
   // 3. Files deleted successfully — now remove the DB rows.
   const ids = orphans.map(({ id }) => id);
   await db.delete(uploads).where(inArray(uploads.id, ids));
+
+  return orphans.length;
+}
+
+/**
+ * Delete draft tracks older than 24 hours that were never submitted.
+ * These accumulate when credit deduction fails in createAndSubmitTrack.
+ * Removes blob files from storage first, then the database rows.
+ * Returns the number of cleaned-up drafts.
+ */
+export async function cleanupOrphanedDrafts(): Promise<number> {
+  const cutoff = new Date(Date.now() - DRAFT_ORPHAN_AGE_MS);
+
+  // 1. Find orphaned drafts — old, still "draft", not soft-deleted.
+  const orphans = await db
+    .select({ id: tracks.id, audioFilename: tracks.audioFilename })
+    .from(tracks)
+    .where(
+      and(
+        eq(tracks.status, "draft"),
+        eq(tracks.isDeleted, false),
+        lte(tracks.createdAt, cutoff),
+      ),
+    );
+
+  if (orphans.length === 0) return 0;
+
+  const urls = orphans.map(({ audioFilename }) => audioFilename);
+
+  // 2. Delete blob files first. If this fails, rows survive for next run.
+  try {
+    await storageDelete(urls);
+  } catch (error) {
+    console.error(
+      "[cleanup] Failed to delete draft audio files — rows preserved for retry. URLs:",
+      urls,
+      error,
+    );
+    return 0;
+  }
+
+  // 3. Files deleted — hard-delete the track rows.
+  const ids = orphans.map(({ id }) => id);
+  await db.delete(tracks).where(inArray(tracks.id, ids));
 
   return orphans.length;
 }

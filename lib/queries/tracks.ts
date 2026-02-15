@@ -45,10 +45,6 @@ export async function getTopTracks(limit = 10) {
       overallScore: tracks.overallScore,
       contextId: tracks.contextId,
       votesReceived: tracks.votesReceived,
-      audioFilename: tracks.audioFilename,
-      snippetStart: tracks.snippetStart,
-      snippetEnd: tracks.snippetEnd,
-      productionStage: tracks.productionStage,
     })
     .from(tracks)
     .where(

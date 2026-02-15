@@ -11,7 +11,12 @@ import { getTopTracks } from "@/lib/queries/tracks";
 import { LeaderboardSection } from "@/components/leaderboard-section";
 
 export default async function LandingPage() {
-  const topTracks = await getTopTracks();
+  let topTracks: Awaited<ReturnType<typeof getTopTracks>> = [];
+  try {
+    topTracks = await getTopTracks();
+  } catch {
+    // DB failure shouldn't take down the landing page — leaderboard is optional
+  }
   return (
     <div className="flex flex-col items-center px-6 pt-6 pb-8">
       {/* Logo */}

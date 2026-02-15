@@ -224,7 +224,7 @@ export async function createAndSubmitTrack(data: {
       votesRequested,
     })
     .where(and(eq(tracks.id, track.id), eq(tracks.status, "draft")))
-    .returning({ id: tracks.id });
+    .returning();
 
   if (!activated) {
     // Shouldn't happen — compensate by refunding credits
@@ -233,6 +233,12 @@ export async function createAndSubmitTrack(data: {
         .update(profiles)
         .set({ credits: sql`${profiles.credits} + ${creditsCost}` })
         .where(eq(profiles.id, userId));
+      await db.insert(creditTransactions).values({
+        userId,
+        amount: creditsCost,
+        type: "track_submit_refund",
+        referenceId: track.id,
+      });
     }
     throw new Error("Failed to activate track");
   }
@@ -243,5 +249,5 @@ export async function createAndSubmitTrack(data: {
     .set({ tracksUploaded: sql`${profiles.tracksUploaded} + 1` })
     .where(eq(profiles.id, userId));
 
-  return track;
+  return activated;
 }

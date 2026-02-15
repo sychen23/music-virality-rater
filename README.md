@@ -82,10 +82,10 @@ See `.env.example` for all required variables:
 
 ## How It Works
 
-1. **Upload** — Upload an audio file and select a snippet
+1. **Upload** — Upload an audio file, select a snippet, and tag a production stage (Demo, Mixed, or Mastered)
 2. **Context** — Pick a context (TikTok/Reels, Spotify Discover, Radio/Mainstream, Sync/Licensing) and a vote package
 3. **Collect** — Other users rate the track on 4 context-specific dimensions (0–3 scale)
-4. **Results** — View scores, percentiles, and AI-generated insights
+4. **Results** — View scores, percentiles, AI-generated insights, and share results via a public link
 
 ### Credit System
 
@@ -93,6 +93,17 @@ See `.env.example` for all required variables:
 - **Earn** credits by rating other tracks (based on clip duration: `max(1, round(duration / 10))`)
 - **Spend** credits to submit tracks: Starter (10 votes / 20 credits), Standard (20 votes / 40 credits), Premium (50 votes / 100 credits)
 
+### Production Stages
+
+Uploaders tag their track's production level so raters can calibrate expectations:
+- **Demo** 🎤 — Rough recording, early idea
+- **Mixed** 🎛️ — Balanced levels, not mastered
+- **Mastered** 💿 — Release-ready, final polish applied
+
 ### AI Insights
 
 At vote milestones (5, 10, 20, 50), Claude generates analytical insights for each track — target audience analysis, similar track comparisons, actionable suggestions, strengths, and opportunities.
+
+### Leaderboard
+
+The landing page features a leaderboard of top-rated tracks, ranked by overall score across all contexts.
