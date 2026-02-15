@@ -20,6 +20,7 @@ interface ResultsViewWrapperProps {
     snippetStart: number | null;
     snippetEnd: number | null;
   };
+  contextId?: string | null;
   dimensions: Dimension[];
   dimensionAverages: number[];
   insights: { title: string; description: string; variant: "success" | "warning" | "default" }[];
@@ -28,6 +29,7 @@ interface ResultsViewWrapperProps {
 
 export function ResultsViewWrapper({
   track,
+  contextId,
   dimensions,
   dimensionAverages,
   insights,
@@ -49,6 +51,7 @@ export function ResultsViewWrapper({
   return (
     <ResultsView
       track={track}
+      contextId={contextId ?? undefined}
       dimensions={dimensions}
       dimensionAverages={dimensionAverages}
       insights={insights}
