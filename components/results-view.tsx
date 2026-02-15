@@ -29,6 +29,7 @@ interface ResultsViewProps {
     snippetStart: number | null;
     snippetEnd: number | null;
   };
+  contextId?: string;
   dimensions: Dimension[];
   dimensionAverages: number[];
   insights: { title: string; description: string; variant: "success" | "warning" | "default" }[];
@@ -38,6 +39,7 @@ interface ResultsViewProps {
 
 export function ResultsView({
   track,
+  contextId,
   dimensions,
   dimensionAverages,
   insights,

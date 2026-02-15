@@ -41,6 +41,7 @@ export default async function PublicResultsPage({
         snippetStart: track.snippetStart,
         snippetEnd: track.snippetEnd,
       }}
+      contextId={track.contextId ?? undefined}
       dimensions={dimensions}
       dimensionAverages={dimensionAverages}
       insights={insights}
