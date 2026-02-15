@@ -7,8 +7,11 @@ import {
   UserMultipleIcon,
   ChartLineData01Icon,
 } from "@hugeicons/core-free-icons";
+import { getTopTracks } from "@/lib/queries/tracks";
+import { LeaderboardSection } from "@/components/leaderboard-section";
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const topTracks = await getTopTracks();
   return (
     <div className="flex flex-col items-center px-6 pt-6 pb-8">
       {/* Logo */}
@@ -79,6 +82,9 @@ export default function LandingPage() {
           ))}
         </div>
       </section>
+
+      {/* Top Tracks Leaderboard */}
+      <LeaderboardSection tracks={topTracks} />
 
       {/* Social Proof */}
       <section className="mt-8 text-center">

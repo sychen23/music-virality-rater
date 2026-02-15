@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { tracks } from "@/lib/db/schema";
-import { eq, and, ne, lt, sql, asc } from "drizzle-orm";
+import { eq, and, ne, lt, sql, asc, desc, isNotNull } from "drizzle-orm";
 
 export async function getNextTrackToRate(userId: string) {
   // Single query with NOT EXISTS subquery — the "not already rated"
@@ -35,4 +35,29 @@ export async function getTrackByShareToken(shareToken: string) {
   return db.query.tracks.findFirst({
     where: and(eq(tracks.shareToken, shareToken), eq(tracks.isDeleted, false)),
   });
+}
+
+export async function getTopTracks(limit = 10) {
+  return db
+    .select({
+      id: tracks.id,
+      title: tracks.title,
+      overallScore: tracks.overallScore,
+      contextId: tracks.contextId,
+      votesReceived: tracks.votesReceived,
+      audioFilename: tracks.audioFilename,
+      snippetStart: tracks.snippetStart,
+      snippetEnd: tracks.snippetEnd,
+      productionStage: tracks.productionStage,
+    })
+    .from(tracks)
+    .where(
+      and(
+        eq(tracks.status, "complete"),
+        eq(tracks.isDeleted, false),
+        isNotNull(tracks.overallScore)
+      )
+    )
+    .orderBy(desc(tracks.overallScore))
+    .limit(limit);
 }
