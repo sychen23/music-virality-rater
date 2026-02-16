@@ -23,6 +23,8 @@ bun run db:push       # Push schema directly (dev shortcut)
 bun run db:studio     # Open Drizzle Studio GUI
 ```
 
+**Always run `bun run db:push` after switching branches or starting fresh.** Neon Local creates a new database branch per git branch, so the schema may be empty. Failing to push will cause "Failed query" errors on tables like `session`.
+
 **Neon Local branch limit (free tier: 10 branches):** Neon Local auto-creates a database branch per git branch. If `docker compose up -d` fails with a 422 error (`Unprocessable Entity` on `/branches`), you've hit the limit. Fix by deleting stale branches:
 ```bash
 # List branches
