@@ -23,6 +23,22 @@ bun run db:push       # Push schema directly (dev shortcut)
 bun run db:studio     # Open Drizzle Studio GUI
 ```
 
+**Neon Local branch limit (free tier: 10 branches):** Neon Local auto-creates a database branch per git branch. If `docker compose up -d` fails with a 422 error (`Unprocessable Entity` on `/branches`), you've hit the limit. Fix by deleting stale branches:
+```bash
+# List branches
+set -a && source .env && set +a
+curl -s -H "Authorization: Bearer $NEON_API_KEY" \
+  "https://console.neon.tech/api/v2/projects/$NEON_PROJECT_ID/branches" | python3 -c "
+import sys,json; [print(f'{b[\"name\"]} → {b[\"id\"]}') for b in json.load(sys.stdin).get('branches',[])]"
+
+# Delete a branch (keep 'production')
+curl -s -X DELETE -H "Authorization: Bearer $NEON_API_KEY" \
+  "https://console.neon.tech/api/v2/projects/$NEON_PROJECT_ID/branches/<branch-id>"
+
+# Then restart
+docker compose down && docker compose up -d
+```
+
 Add shadcn components:
 ```bash
 bunx shadcn@latest add <component-name>
