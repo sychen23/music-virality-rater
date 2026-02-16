@@ -34,7 +34,9 @@ export function AudioPlayer({
   // Keep a stable ref to onPlayedOnce so event listeners don't get
   // re-attached on every render (which could cause missed events).
   const onPlayedOnceRef = useRef(onPlayedOnce);
-  onPlayedOnceRef.current = onPlayedOnce;
+  useEffect(() => {
+    onPlayedOnceRef.current = onPlayedOnce;
+  }, [onPlayedOnce]);
 
   const markPlayed = useCallback(() => {
     if (!hasPlayedOnceRef.current) {
@@ -92,8 +94,18 @@ export function AudioPlayer({
       if (snippetEnd !== undefined && audio.currentTime >= snippetEnd) {
         audio.currentTime = effectiveStart;
       }
-      audio.play();
-      setIsPlaying(true);
+      audio.play().then(() => {
+        setIsPlaying(true);
+      }).catch((err) => {
+        // AbortError is expected when play() is interrupted by pause() or
+        // element removal — safe to ignore. Other errors (e.g. NotAllowedError
+        // from autoplay policy, NotSupportedError from codec issues) mean
+        // playback genuinely failed.
+        if (err.name !== "AbortError") {
+          setIsPlaying(false);
+          console.warn("Audio playback failed:", err);
+        }
+      });
     }
   }, [isPlaying, snippetStart, snippetEnd, effectiveStart]);
 
