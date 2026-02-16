@@ -82,10 +82,9 @@ See `.env.example` for all required variables:
 
 ## How It Works
 
-1. **Upload** — Upload an audio file, select a snippet, and tag a production stage (Demo, Mixed, or Mastered)
-2. **Context** — Pick a context (TikTok/Reels, Spotify Discover, Radio/Mainstream, Sync/Licensing) and a vote package
-3. **Collect** — Other users rate the track on 4 context-specific dimensions (0–3 scale)
-4. **Results** — View scores, percentiles, AI-generated insights, and share results via a public link
+1. **Upload** — Upload an audio file, select a snippet, tag a production stage (Demo, Mixed, or Mastered), pick a context (TikTok/Reels, Spotify Discover, Radio/Mainstream, Sync/Licensing), and choose a vote package — all on one page
+2. **Collect** — Other users rate the track on 4 context-specific dimensions (0–3 scale)
+3. **Results** — View scores, percentiles, AI-generated insights, and share results via a public link
 
 ### Credit System
 
