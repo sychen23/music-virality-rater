@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Soundcheck — Concert Crowd Concepts</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --primary: oklch(0.541 0.281 293.009);
+    --primary-light: oklch(0.75 0.15 293);
+    --primary-faint: oklch(0.95 0.03 293);
+    --bg: #fff;
+    --fg: #111;
+    --muted: #888;
+    --muted-bg: #f5f5f5;
+    --border: #e5e5e5;
+    --green: #22c55e;
+    --yellow: #eab308;
+  }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #f0f0f0;
+    color: var(--fg);
+    line-height: 1.5;
+  }
+
+  .nav {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(255,255,255,0.92); backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 24px;
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  }
+  .nav h1 { font-size: 15px; font-weight: 700; white-space: nowrap; }
+  .nav .tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+  .nav .tab {
+    padding: 5px 12px; border-radius: 999px; font-size: 12px; font-weight: 600;
+    cursor: pointer; border: 2px solid var(--border); background: white; transition: all 0.2s;
+  }
+  .nav .tab:hover { border-color: var(--primary); color: var(--primary); }
+  .nav .tab.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+  .state-toggle { display: flex; align-items: center; gap: 8px; margin-left: 12px; padding-left: 12px; border-left: 1px solid var(--border); }
+  .state-toggle label { font-size: 12px; font-weight: 600; color: var(--muted); cursor: pointer; }
+  .state-toggle label.active-label { color: var(--fg); }
+  .toggle-track { width: 36px; height: 20px; background: var(--muted-bg); border: 1.5px solid var(--border); border-radius: 10px; position: relative; cursor: pointer; transition: background 0.2s; }
+  .toggle-track.on { background: var(--primary); border-color: var(--primary); }
+  .toggle-knob { width: 14px; height: 14px; background: white; border-radius: 50%; position: absolute; top: 2px; left: 2px; transition: left 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+  .toggle-track.on .toggle-knob { left: 18px; }
+
+  .when-complete { display: block; }
+  .when-collecting { display: none; }
+  body.collecting .when-complete { display: none; }
+  body.collecting .when-collecting { display: block; }
+
+  .pulse-dot { position: relative; display: inline-flex; width: 8px; height: 8px; }
+  .pulse-dot::before { content: ''; position: absolute; inset: 0; border-radius: 50%; background: var(--green); animation: pulse-ring 1.5s ease infinite; }
+  .pulse-dot::after { content: ''; position: relative; width: 8px; height: 8px; border-radius: 50%; background: var(--green); }
+  @keyframes pulse-ring { 0% { transform: scale(1); opacity: 0.7; } 100% { transform: scale(2.2); opacity: 0; } }
+
+  .concept { display: none; max-width: 480px; margin: 32px auto; padding-bottom: 48px; }
+  .concept.active { display: block; }
+  .concept-label { text-align: center; margin-bottom: 24px; }
+  .concept-label h2 { font-size: 20px; font-weight: 800; margin-bottom: 4px; }
+  .concept-label p { color: var(--muted); font-size: 13px; max-width: 400px; margin: 0 auto; }
+
+  .phone-frame { background: var(--bg); border-radius: 24px; box-shadow: 0 8px 40px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.06); overflow: hidden; }
+
+  /* Shared elements */
+  .play-btn { width: 40px; height: 40px; border-radius: 50%; background: var(--primary); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .play-btn::after { content: ''; width: 0; height: 0; border-left: 10px solid white; border-top: 6px solid transparent; border-bottom: 6px solid transparent; margin-left: 2px; }
+  .waveform { flex: 1; height: 32px; display: flex; align-items: end; gap: 2px; }
+  .waveform .bar { flex: 1; border-radius: 2px 2px 0 0; background: var(--primary); opacity: 0.3; }
+  .waveform .bar.filled { opacity: 1; }
+  .time-label { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+
+  .spacer { height: 32px; }
+
+  /* Crowd SVG (no raised hands) — just silhouette heads + body mass */
+  .crowd-svg { display: block; width: 100%; }
+
+  /* ============================================
+     Shared section styles (close to existing layout)
+     ============================================ */
+  .section { padding: 0 24px; margin-bottom: 24px; }
+  .section-title { font-size: 14px; font-weight: 700; margin-bottom: 12px; }
+
+  /* Score bar (dimension) */
+  .dim-row { margin-bottom: 12px; }
+  .dim-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+  .dim-label { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+  .dim-pct { font-size: 13px; font-weight: 800; color: var(--primary); }
+  .dim-bar { height: 10px; background: var(--muted-bg); border-radius: 5px; overflow: hidden; }
+  .dim-bar-fill { height: 100%; border-radius: 5px; }
+
+  /* Insight card */
+  .insight-card { padding: 14px; border-radius: 12px; margin-bottom: 10px; border-left: 4px solid; }
+  .insight-card.success { border-color: var(--green); background: oklch(0.97 0.03 145); }
+  .insight-card.warning { border-color: var(--yellow); background: oklch(0.97 0.04 85); }
+  .insight-card.default { border-color: var(--primary); background: oklch(0.97 0.03 293); }
+  .insight-title { font-size: 13px; font-weight: 700; }
+  .insight-desc { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  /* Share */
+  .share-box { padding: 16px; border-radius: 14px; border: 1px solid var(--border); }
+  .share-title { font-size: 12px; font-weight: 700; color: var(--muted); margin-bottom: 10px; }
+  .share-btns { display: flex; gap: 8px; }
+  .share-btn { flex: 1; padding: 8px; border-radius: 8px; background: var(--muted-bg); border: 1px solid var(--border); font-size: 12px; font-weight: 600; text-align: center; cursor: pointer; }
+
+  /* Progress */
+  .progress-bar { height: 6px; background: var(--muted-bg); border-radius: 3px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 3px; background: var(--primary); }
+  .progress-text { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+  /* ============================================
+     CONCEPT K: Subtle Crowd Silhouette Footer
+     Same layout as current, crowd as accent behind score
+     ============================================ */
+  .k-score-wrap {
+    position: relative;
+    border-radius: 20px;
+    overflow: hidden;
+    background: linear-gradient(180deg, oklch(0.97 0.02 293), oklch(0.94 0.04 293));
+    border: 1px solid oklch(0.9 0.05 293);
+  }
+  .k-score-content {
+    position: relative;
+    z-index: 2;
+    padding: 24px 24px 8px;
+    text-align: center;
+  }
+  .k-score-label { font-size: 13px; font-weight: 600; color: var(--muted); }
+  .k-score-num { font-size: 48px; font-weight: 800; color: var(--primary); line-height: 1; margin-top: 4px; }
+  .k-percentile { font-size: 13px; color: var(--muted); margin-top: 6px; font-weight: 500; }
+  .k-crowd-accent {
+    position: relative;
+    z-index: 1;
+    height: 48px;
+    opacity: 0.5;
+    margin-top: -4px;
+  }
+
+  /* ============================================
+     CONCEPT L: Stage Glow Header + Crowd Divider
+     Subtle dark header with stage glow, crowd used as section dividers
+     ============================================ */
+  .l-header {
+    position: relative;
+    background: linear-gradient(180deg, oklch(0.15 0.04 293), oklch(0.22 0.06 293));
+    padding: 28px 24px 48px;
+    color: white;
+    overflow: hidden;
+  }
+  .l-header::before {
+    content: '';
+    position: absolute;
+    top: -40px; left: 50%;
+    transform: translateX(-50%);
+    width: 260px; height: 200px;
+    background: radial-gradient(ellipse, oklch(0.5 0.25 293 / 0.25), transparent 70%);
+    pointer-events: none;
+  }
+  .l-title { font-size: 22px; font-weight: 800; position: relative; z-index: 2; }
+  .l-badge { display: inline-block; margin-top: 6px; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; position: relative; z-index: 2; }
+  .l-badge-complete { background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.15); }
+  .l-badge-collecting { background: rgba(34,197,94,0.15); border: 1px solid rgba(34,197,94,0.25); color: oklch(0.8 0.15 145); }
+
+  .l-crowd-divider {
+    margin: -24px 0 0 0;
+    height: 36px;
+    position: relative;
+    z-index: 3;
+  }
+
+  .l-score-box {
+    margin: 0 24px 24px;
+    padding: 24px;
+    border-radius: 20px;
+    background: var(--primary-faint);
+    border: 1px solid oklch(0.9 0.05 293);
+    text-align: center;
+  }
+
+  /* ============================================
+     CONCEPT M: Gradient Score with Crowd Horizon
+     Score has crowd silhouette at the bottom as "audience watching"
+     ============================================ */
+  .m-score-card {
+    margin: 0 24px 24px;
+    border-radius: 20px;
+    overflow: hidden;
+    background: linear-gradient(160deg, oklch(0.3 0.15 293), oklch(0.45 0.22 310));
+    color: white;
+    position: relative;
+  }
+  .m-score-inner {
+    padding: 28px 24px 12px;
+    text-align: center;
+    position: relative;
+    z-index: 2;
+  }
+  .m-score-label { font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 1px; }
+  .m-score-num { font-size: 56px; font-weight: 900; line-height: 1; margin-top: 4px; text-shadow: 0 2px 20px rgba(255,255,255,0.2); }
+  .m-percentile { font-size: 13px; color: rgba(255,255,255,0.5); margin-top: 8px; }
+  .m-crowd-horizon {
+    height: 44px;
+    position: relative;
+    z-index: 1;
+    opacity: 0.35;
+    margin-top: -8px;
+  }
+  .m-prelim-note {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    margin-bottom: 6px;
+    font-size: 11px; color: rgba(255,255,255,0.4);
+  }
+
+  /* Dimension bars with glow for high scores */
+  .m-dim-bar-fill.glow {
+    box-shadow: 0 0 8px oklch(0.5 0.2 293 / 0.3);
+  }
+
+  /* ============================================
+     CONCEPT N: Minimal Stage — Spotlight + Silhouette accent
+     Light theme, just a thin crowd strip and spotlight gradient on score
+     ============================================ */
+  .n-score-section {
+    margin: 0 24px 24px;
+    border-radius: 20px;
+    overflow: hidden;
+    position: relative;
+    background: white;
+    border: 1px solid var(--border);
+  }
+  .n-spotlight {
+    position: absolute;
+    top: -20px; left: 50%;
+    transform: translateX(-50%);
+    width: 200px; height: 120px;
+    background: radial-gradient(ellipse, oklch(0.7 0.15 293 / 0.12), transparent 70%);
+    pointer-events: none;
+  }
+  .n-score-inner {
+    position: relative;
+    z-index: 2;
+    padding: 28px 24px 8px;
+    text-align: center;
+  }
+  .n-score-label { font-size: 13px; font-weight: 600; color: var(--muted); }
+  .n-score-num { font-size: 48px; font-weight: 800; color: var(--primary); line-height: 1; margin-top: 4px; }
+  .n-percentile { font-size: 13px; color: var(--muted); margin-top: 6px; font-weight: 500; }
+  .n-crowd-strip {
+    height: 32px;
+    opacity: 0.12;
+    margin-top: 4px;
+  }
+
+  /* Dim bar with small stage-light dots */
+  .n-dim-row { position: relative; }
+  .n-dim-indicator {
+    position: absolute;
+    right: 0; top: 0;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+  }
+  .n-dim-indicator.hot { background: var(--green); box-shadow: 0 0 4px var(--green); }
+  .n-dim-indicator.warm { background: var(--yellow); box-shadow: 0 0 4px var(--yellow); }
+  .n-dim-indicator.cool { background: var(--muted); }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <h1>Concert Crowd Concepts</h1>
+  <div class="tabs">
+    <div class="tab active" onclick="show('k')">K: Crowd Accent</div>
+    <div class="tab" onclick="show('l')">L: Stage Header</div>
+    <div class="tab" onclick="show('m')">M: Crowd Horizon</div>
+    <div class="tab" onclick="show('n')">N: Spotlight</div>
+  </div>
+  <div class="state-toggle">
+    <label id="label-complete" class="active-label">Complete</label>
+    <div class="toggle-track" id="state-toggle" onclick="toggleState()"><div class="toggle-knob"></div></div>
+    <label id="label-collecting">Collecting</label>
+  </div>
+</nav>
+
+<!-- Inline SVG template for crowd (no raised hands) -->
+<svg style="display:none;">
+  <defs>
+    <!-- Person shape: head circle + shoulder/torso path -->
+    <!-- Each person is a path: head (circle approx) + shoulders curving out + torso going down -->
+    <symbol id="crowd-no-hands" viewBox="0 0 480 60">
+      <linearGradient id="cg" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="currentColor" stop-opacity="0.7"/>
+        <stop offset="1" stop-color="currentColor" stop-opacity="0.2"/>
+      </linearGradient>
+      <!-- Each person: head + shoulders + torso silhouette -->
+      <!-- Person 1 --><path d="M8,20 a7,7 0 1,1 14,0 a7,7 0 1,1 -14,0 M3,60 L3,38 Q3,28 15,28 Q27,28 27,38 L27,60 Z" fill="url(#cg)"/>
+      <!-- Person 2 --><path d="M30,17 a8,8 0 1,1 16,0 a8,8 0 1,1 -16,0 M24,60 L24,35 Q24,25 38,25 Q52,25 52,35 L52,60 Z" fill="url(#cg)"/>
+      <!-- Person 3 --><path d="M56,22 a6.5,6.5 0 1,1 13,0 a6.5,6.5 0 1,1 -13,0 M51,60 L51,39 Q51,30 62.5,30 Q74,30 74,39 L74,60 Z" fill="url(#cg)"/>
+      <!-- Person 4 --><path d="M78,15 a8.5,8.5 0 1,1 17,0 a8.5,8.5 0 1,1 -17,0 M72,60 L72,33 Q72,23 86.5,23 Q101,23 101,33 L101,60 Z" fill="url(#cg)"/>
+      <!-- Person 5 --><path d="M105,19 a7,7 0 1,1 14,0 a7,7 0 1,1 -14,0 M100,60 L100,37 Q100,27 112,27 Q124,27 124,37 L124,60 Z" fill="url(#cg)"/>
+      <!-- Person 6 --><path d="M130,21 a6.5,6.5 0 1,1 13,0 a6.5,6.5 0 1,1 -13,0 M126,60 L126,38 Q126,29 136.5,29 Q147,29 147,38 L147,60 Z" fill="url(#cg)"/>
+      <!-- Person 7 --><path d="M152,16 a8,8 0 1,1 16,0 a8,8 0 1,1 -16,0 M146,60 L146,34 Q146,24 160,24 Q174,24 174,34 L174,60 Z" fill="url(#cg)"/>
+      <!-- Person 8 --><path d="M180,20 a7,7 0 1,1 14,0 a7,7 0 1,1 -14,0 M175,60 L175,37 Q175,27 187,27 Q199,27 199,37 L199,60 Z" fill="url(#cg)"/>
+      <!-- Person 9 --><path d="M204,14 a8.5,8.5 0 1,1 17,0 a8.5,8.5 0 1,1 -17,0 M198,60 L198,32 Q198,22 212.5,22 Q227,22 227,32 L227,60 Z" fill="url(#cg)"/>
+      <!-- Person 10 --><path d="M232,19 a7,7 0 1,1 14,0 a7,7 0 1,1 -14,0 M227,60 L227,36 Q227,27 239,27 Q251,27 251,36 L251,60 Z" fill="url(#cg)"/>
+      <!-- Person 11 --><path d="M256,16 a8,8 0 1,1 16,0 a8,8 0 1,1 -16,0 M250,60 L250,34 Q250,24 264,24 Q278,24 278,34 L278,60 Z" fill="url(#cg)"/>
+      <!-- Person 12 --><path d="M283,21 a6.5,6.5 0 1,1 13,0 a6.5,6.5 0 1,1 -13,0 M279,60 L279,38 Q279,29 289.5,29 Q300,29 300,38 L300,60 Z" fill="url(#cg)"/>
+      <!-- Person 13 --><path d="M306,17 a8,8 0 1,1 16,0 a8,8 0 1,1 -16,0 M300,60 L300,35 Q300,25 314,25 Q328,25 328,35 L328,60 Z" fill="url(#cg)"/>
+      <!-- Person 14 --><path d="M334,20 a7,7 0 1,1 14,0 a7,7 0 1,1 -14,0 M329,60 L329,37 Q329,27 341,27 Q353,27 353,37 L353,60 Z" fill="url(#cg)"/>
+      <!-- Person 15 --><path d="M358,15 a8.5,8.5 0 1,1 17,0 a8.5,8.5 0 1,1 -17,0 M352,60 L352,33 Q352,23 366.5,23 Q381,23 381,33 L381,60 Z" fill="url(#cg)"/>
+      <!-- Person 16 --><path d="M386,19 a7,7 0 1,1 14,0 a7,7 0 1,1 -14,0 M381,60 L381,36 Q381,27 393,27 Q405,27 405,36 L405,60 Z" fill="url(#cg)"/>
+      <!-- Person 17 --><path d="M410,16 a8,8 0 1,1 16,0 a8,8 0 1,1 -16,0 M404,60 L404,34 Q404,24 418,24 Q432,24 432,34 L432,60 Z" fill="url(#cg)"/>
+      <!-- Person 18 --><path d="M438,20 a7,7 0 1,1 14,0 a7,7 0 1,1 -14,0 M433,60 L433,37 Q433,27 445,27 Q457,27 457,37 L457,60 Z" fill="url(#cg)"/>
+      <!-- Person 19 --><path d="M462,18 a7,7 0 1,1 14,0 a7,7 0 1,1 -14,0 M457,60 L457,35 Q457,26 469,26 Q480,26 480,35 L480,60 Z" fill="url(#cg)"/>
+    </symbol>
+    <!-- Denser two-row crowd -->
+    <symbol id="crowd-dense" viewBox="0 0 480 60">
+      <linearGradient id="cg2" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="currentColor" stop-opacity="0.55"/>
+        <stop offset="1" stop-color="currentColor" stop-opacity="0.12"/>
+      </linearGradient>
+      <linearGradient id="cg3" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="currentColor" stop-opacity="0.35"/>
+        <stop offset="1" stop-color="currentColor" stop-opacity="0.08"/>
+      </linearGradient>
+      <!-- Back row (smaller, higher, lighter) -->
+      <path d="M20,12 a5,5 0 1,1 10,0 a5,5 0 1,1 -10,0 M17,60 L17,26 Q17,19 25,19 Q33,19 33,26 L33,60 Z" fill="url(#cg3)"/>
+      <path d="M58,10 a5.5,5.5 0 1,1 11,0 a5.5,5.5 0 1,1 -11,0 M55,60 L55,24 Q55,17 63.5,17 Q72,17 72,24 L72,60 Z" fill="url(#cg3)"/>
+      <path d="M100,13 a5,5 0 1,1 10,0 a5,5 0 1,1 -10,0 M97,60 L97,27 Q97,20 105,20 Q113,20 113,27 L113,60 Z" fill="url(#cg3)"/>
+      <path d="M142,10 a5.5,5.5 0 1,1 11,0 a5.5,5.5 0 1,1 -11,0 M139,60 L139,24 Q139,17 147.5,17 Q156,17 156,24 L156,60 Z" fill="url(#cg3)"/>
+      <path d="M184,12 a5,5 0 1,1 10,0 a5,5 0 1,1 -10,0 M181,60 L181,26 Q181,19 189,19 Q197,19 197,26 L197,60 Z" fill="url(#cg3)"/>
+      <path d="M226,10 a5.5,5.5 0 1,1 11,0 a5.5,5.5 0 1,1 -11,0 M223,60 L223,24 Q223,17 231.5,17 Q240,17 240,24 L240,60 Z" fill="url(#cg3)"/>
+      <path d="M268,13 a5,5 0 1,1 10,0 a5,5 0 1,1 -10,0 M265,60 L265,27 Q265,20 273,20 Q281,20 281,27 L281,60 Z" fill="url(#cg3)"/>
+      <path d="M310,10 a5.5,5.5 0 1,1 11,0 a5.5,5.5 0 1,1 -11,0 M307,60 L307,24 Q307,17 315.5,17 Q324,17 324,24 L324,60 Z" fill="url(#cg3)"/>
+      <path d="M352,12 a5,5 0 1,1 10,0 a5,5 0 1,1 -10,0 M349,60 L349,26 Q349,19 357,19 Q365,19 365,26 L365,60 Z" fill="url(#cg3)"/>
+      <path d="M394,10 a5.5,5.5 0 1,1 11,0 a5.5,5.5 0 1,1 -11,0 M391,60 L391,24 Q391,17 399.5,17 Q408,17 408,24 L408,60 Z" fill="url(#cg3)"/>
+      <path d="M436,12 a5,5 0 1,1 10,0 a5,5 0 1,1 -10,0 M433,60 L433,26 Q433,19 441,19 Q449,19 449,26 L449,60 Z" fill="url(#cg3)"/>
+      <!-- Front row (larger, lower, more opaque) -->
+      <path d="M4,22 a7,7 0 1,1 14,0 a7,7 0 1,1 -14,0 M0,60 L0,38 Q0,29 11,29 Q22,29 22,38 L22,60 Z" fill="url(#cg2)"/>
+      <path d="M28,19 a8,8 0 1,1 16,0 a8,8 0 1,1 -16,0 M23,60 L23,35 Q23,27 36,27 Q49,27 49,35 L49,60 Z" fill="url(#cg2)"/>
+      <path d="M54,23 a6.5,6.5 0 1,1 13,0 a6.5,6.5 0 1,1 -13,0 M50,60 L50,39 Q50,31 60.5,31 Q71,31 71,39 L71,60 Z" fill="url(#cg2)"/>
+      <path d="M76,18 a8,8 0 1,1 16,0 a8,8 0 1,1 -16,0 M71,60 L71,34 Q71,26 84,26 Q97,26 97,34 L97,60 Z" fill="url(#cg2)"/>
+      <path d="M102,22 a7,7 0 1,1 14,0 a7,7 0 1,1 -14,0 M97,60 L97,38 Q97,29 109,29 Q121,29 121,38 L121,60 Z" fill="url(#cg2)"/>
+      <path d="M126,19 a8,8 0 1,1 16,0 a8,8 0 1,1 -16,0 M121,60 L121,35 Q121,27 134,27 Q147,27 147,35 L147,60 Z" fill="url(#cg2)"/>
+      <path d="M152,23 a6.5,6.5 0 1,1 13,0 a6.5,6.5 0 1,1 -13,0 M148,60 L148,39 Q148,31 158.5,31 Q169,31 169,39 L169,60 Z" fill="url(#cg2)"/>
+      <path d="M174,18 a8,8 0 1,1 16,0 a8,8 0 1,1 -16,0 M169,60 L169,34 Q169,26 182,26 Q195,26 195,34 L195,60 Z" fill="url(#cg2)"/>
+      <path d="M200,22 a7,7 0 1,1 14,0 a7,7 0 1,1 -14,0 M195,60 L195,38 Q195,29 207,29 Q219,29 219,38 L219,60 Z" fill="url(#cg2)"/>
+      <path d="M224,18 a8,8 0 1,1 16,0 a8,8 0 1,1 -16,0 M219,60 L219,34 Q219,26 232,26 Q245,26 245,34 L245,60 Z" fill="url(#cg2)"/>
+      <path d="M250,23 a6.5,6.5 0 1,1 13,0 a6.5,6.5 0 1,1 -13,0 M246,60 L246,39 Q246,31 256.5,31 Q267,31 267,39 L267,60 Z" fill="url(#cg2)"/>
+      <path d="M272,18 a8,8 0 1,1 16,0 a8,8 0 1,1 -16,0 M267,60 L267,34 Q267,26 280,26 Q293,26 293,34 L293,60 Z" fill="url(#cg2)"/>
+      <path d="M298,22 a7,7 0 1,1 14,0 a7,7 0 1,1 -14,0 M293,60 L293,38 Q293,29 305,29 Q317,29 317,38 L317,60 Z" fill="url(#cg2)"/>
+      <path d="M322,19 a8,8 0 1,1 16,0 a8,8 0 1,1 -16,0 M317,60 L317,35 Q317,27 330,27 Q343,27 343,35 L343,60 Z" fill="url(#cg2)"/>
+      <path d="M348,23 a6.5,6.5 0 1,1 13,0 a6.5,6.5 0 1,1 -13,0 M344,60 L344,39 Q344,31 354.5,31 Q365,31 365,39 L365,60 Z" fill="url(#cg2)"/>
+      <path d="M370,18 a8,8 0 1,1 16,0 a8,8 0 1,1 -16,0 M365,60 L365,34 Q365,26 378,26 Q391,26 391,34 L391,60 Z" fill="url(#cg2)"/>
+      <path d="M396,22 a7,7 0 1,1 14,0 a7,7 0 1,1 -14,0 M391,60 L391,38 Q391,29 403,29 Q415,29 415,38 L415,60 Z" fill="url(#cg2)"/>
+      <path d="M420,19 a8,8 0 1,1 16,0 a8,8 0 1,1 -16,0 M415,60 L415,35 Q415,27 428,27 Q441,27 441,35 L441,60 Z" fill="url(#cg2)"/>
+      <path d="M446,22 a7,7 0 1,1 14,0 a7,7 0 1,1 -14,0 M441,60 L441,38 Q441,29 453,29 Q465,29 465,38 L465,60 Z" fill="url(#cg2)"/>
+      <path d="M468,19 a7,7 0 1,1 14,0 a7,7 0 1,1 -14,0 M464,60 L464,35 Q464,27 475,27 Q486,27 486,35 L486,60 Z" fill="url(#cg2)"/>
+    </symbol>
+  </defs>
+</svg>
+
+
+<!-- ==================== CONCEPT K: Crowd Accent on Score ==================== -->
+<div class="concept active" id="concept-k">
+  <div class="concept-label">
+    <h2>K: Crowd Accent on Score Card</h2>
+    <p>Closest to current layout. Crowd silhouette sits at the bottom of the score card as a subtle decorative element. Everything else stays the same.</p>
+  </div>
+  <div class="phone-frame">
+    <div style="padding: 24px 24px 0;">
+      <!-- Header (same as current) -->
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px;">
+        <div>
+          <h1 style="font-size:22px;font-weight:800;">Late Night Drive</h1>
+          <span class="when-complete"><span style="display:inline-block;margin-top:4px;padding:2px 10px;border-radius:999px;font-size:11px;font-weight:600;background:var(--primary);color:white;">Complete</span></span>
+          <span class="when-collecting"><span style="display:inline-flex;align-items:center;gap:6px;margin-top:4px;padding:2px 10px;border-radius:999px;font-size:11px;font-weight:600;background:oklch(0.95 0.03 145);color:oklch(0.4 0.15 145);"><span class="pulse-dot"></span> Collecting</span></span>
+        </div>
+        <span style="font-size:13px;color:var(--muted);cursor:pointer;">Delete</span>
+      </div>
+
+      <!-- Progress (collecting) -->
+      <div class="when-collecting" style="margin-bottom:24px;">
+        <div class="progress-bar"><div class="progress-fill" style="width:40%;"></div></div>
+        <div class="progress-text">8 of 20 votes collected</div>
+      </div>
+
+      <!-- Audio Player -->
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;padding:14px 16px;background:var(--muted-bg);border-radius:14px;">
+        <div class="play-btn"></div>
+        <div class="waveform" id="wf-k"></div>
+        <div class="time-label">0:00 / 0:30</div>
+      </div>
+    </div>
+
+    <!-- Score card with crowd accent -->
+    <div style="padding:0 24px;">
+      <!-- Complete -->
+      <div class="when-complete">
+        <div class="k-score-wrap" style="margin-bottom:24px;">
+          <div class="k-score-content">
+            <div class="k-score-label">Overall Virality Score</div>
+            <div class="k-score-num">78%</div>
+            <div class="k-percentile">Top 15% of all tracks tested</div>
+          </div>
+          <div class="k-crowd-accent" style="color:var(--primary);">
+            <svg class="crowd-svg" preserveAspectRatio="xMidYMax slice"><use href="#crowd-no-hands"/></svg>
+          </div>
+        </div>
+      </div>
+      <!-- Collecting -->
+      <div class="when-collecting">
+        <div class="k-score-wrap" style="margin-bottom:24px;border-style:dashed;border-width:2px;border-color:oklch(0.85 0.08 293);background:oklch(0.98 0.01 293);">
+          <div class="k-score-content">
+            <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:2px;">
+              <span class="pulse-dot"></span>
+              <span class="k-score-label">Preliminary Score</span>
+            </div>
+            <div class="k-score-num" style="opacity:0.6;">~62%</div>
+            <div class="k-percentile" style="font-style:italic;">Based on 8 votes — may shift</div>
+          </div>
+          <div class="k-crowd-accent" style="color:var(--primary);opacity:0.25;">
+            <svg class="crowd-svg" preserveAspectRatio="xMidYMax slice"><use href="#crowd-no-hands"/></svg>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dimensions (same as current) -->
+    <div class="section">
+      <div class="section-title">Dimension Breakdown</div>
+      <div class="dim-row"><div class="dim-header"><span class="dim-label">🎣 Hook Factor</span><span class="dim-pct">85%</span></div><div class="dim-bar"><div class="dim-bar-fill" style="width:85%;background:var(--primary);border-radius:5px;"></div></div></div>
+      <div class="dim-row"><div class="dim-header"><span class="dim-label">🧠 Memorability</span><span class="dim-pct">72%</span></div><div class="dim-bar"><div class="dim-bar-fill" style="width:72%;background:var(--primary);border-radius:5px;"></div></div></div>
+      <div class="dim-row"><div class="dim-header"><span class="dim-label">💃 Movement</span><span class="dim-pct">90%</span></div><div class="dim-bar"><div class="dim-bar-fill" style="width:90%;background:var(--primary);border-radius:5px;"></div></div></div>
+      <div class="dim-row"><div class="dim-header"><span class="dim-label">✨ Trend Fit</span><span class="dim-pct" style="color:oklch(0.6 0.2 293);">58%</span></div><div class="dim-bar"><div class="dim-bar-fill" style="width:58%;background:oklch(0.606 0.25 292.717);border-radius:5px;"></div></div></div>
+    </div>
+
+    <!-- Insights -->
+    <div class="when-complete">
+      <div class="section">
+        <div class="section-title">Insights</div>
+        <div class="insight-card success"><div class="insight-title">Strong hook — Movement score is exceptional</div><div class="insight-desc">Your track's rhythmic elements tested in the top tier.</div></div>
+        <div class="insight-card warning"><div class="insight-title">Room to grow — Trend alignment</div><div class="insight-desc">Adjusting production to match current sounds could push this further.</div></div>
+      </div>
+    </div>
+
+    <!-- Share -->
+    <div class="section">
+      <div class="share-box"><div class="share-title">Share Results</div><div class="share-btns"><div class="share-btn">Post</div><div class="share-btn">Message</div><div class="share-btn">Email</div><div class="share-btn">Copy</div></div></div>
+    </div>
+    <div class="spacer"></div>
+  </div>
+</div>
+
+
+<!-- ==================== CONCEPT L: Stage Glow Header ==================== -->
+<div class="concept" id="concept-l">
+  <div class="concept-label">
+    <h2>L: Stage Glow Header + Crowd Divider</h2>
+    <p>Dark header with soft stage-light glow, crowd silhouette sits between header and content as a transition. Rest of page is light theme.</p>
+  </div>
+  <div class="phone-frame">
+    <!-- Dark header -->
+    <div class="l-header">
+      <h1 class="l-title">Late Night Drive</h1>
+      <span class="when-complete"><span class="l-badge l-badge-complete">Complete</span></span>
+      <span class="when-collecting"><span class="l-badge l-badge-collecting"><span class="pulse-dot" style="margin-right:4px;"></span> Collecting</span></span>
+    </div>
+
+    <!-- Crowd transition from dark to light -->
+    <div class="l-crowd-divider" style="color:white;background:linear-gradient(180deg, oklch(0.22 0.06 293), var(--bg));">
+      <svg class="crowd-svg" style="height:100%;" preserveAspectRatio="xMidYMax slice"><use href="#crowd-dense"/></svg>
+    </div>
+
+    <!-- Collecting progress -->
+    <div class="when-collecting" style="padding:0 24px;margin-bottom:16px;margin-top:8px;">
+      <div class="progress-bar"><div class="progress-fill" style="width:40%;"></div></div>
+      <div class="progress-text">8 of 20 votes collected</div>
+    </div>
+
+    <!-- Audio Player -->
+    <div style="padding:0 24px;">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;padding:14px 16px;border:1px solid var(--border);border-radius:14px;">
+        <div class="play-btn"></div>
+        <div class="waveform" id="wf-l"></div>
+        <div class="time-label">0:00 / 0:30</div>
+      </div>
+    </div>
+
+    <!-- Score -->
+    <div style="padding:0 24px;">
+      <div class="when-complete">
+        <div class="l-score-box">
+          <div style="font-size:13px;font-weight:600;color:var(--muted);">Overall Virality Score</div>
+          <div style="font-size:48px;font-weight:800;color:var(--primary);line-height:1;margin-top:4px;">78%</div>
+          <div style="font-size:13px;color:var(--muted);margin-top:6px;">Top 15% of all tracks tested</div>
+        </div>
+      </div>
+      <div class="when-collecting">
+        <div class="l-score-box" style="border-style:dashed;border-width:2px;border-color:oklch(0.85 0.08 293);background:oklch(0.98 0.01 293);">
+          <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:2px;">
+            <span class="pulse-dot"></span>
+            <span style="font-size:13px;font-weight:600;color:var(--muted);">Preliminary Score</span>
+          </div>
+          <div style="font-size:48px;font-weight:800;color:var(--primary);line-height:1;margin-top:4px;opacity:0.6;">~62%</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:6px;font-style:italic;">Based on 8 votes — may shift</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dimensions -->
+    <div class="section" style="margin-top:24px;">
+      <div class="section-title">Dimension Breakdown</div>
+      <div class="dim-row"><div class="dim-header"><span class="dim-label">🎣 Hook Factor</span><span class="dim-pct">85%</span></div><div class="dim-bar"><div class="dim-bar-fill" style="width:85%;background:var(--primary);border-radius:5px;"></div></div></div>
+      <div class="dim-row"><div class="dim-header"><span class="dim-label">🧠 Memorability</span><span class="dim-pct">72%</span></div><div class="dim-bar"><div class="dim-bar-fill" style="width:72%;background:var(--primary);border-radius:5px;"></div></div></div>
+      <div class="dim-row"><div class="dim-header"><span class="dim-label">💃 Movement</span><span class="dim-pct">90%</span></div><div class="dim-bar"><div class="dim-bar-fill" style="width:90%;background:var(--primary);border-radius:5px;"></div></div></div>
+      <div class="dim-row"><div class="dim-header"><span class="dim-label">✨ Trend Fit</span><span class="dim-pct" style="color:oklch(0.6 0.2 293);">58%</span></div><div class="dim-bar"><div class="dim-bar-fill" style="width:58%;background:oklch(0.606 0.25 292.717);border-radius:5px;"></div></div></div>
+    </div>
+
+    <!-- Insights -->
+    <div class="when-complete">
+      <div class="section">
+        <div class="section-title">Insights</div>
+        <div class="insight-card success"><div class="insight-title">Strong hook — Movement score is exceptional</div><div class="insight-desc">Your track's rhythmic elements tested in the top tier.</div></div>
+        <div class="insight-card warning"><div class="insight-title">Room to grow — Trend alignment</div><div class="insight-desc">Adjusting production to match current sounds could push this further.</div></div>
+      </div>
+    </div>
+
+    <div class="section"><div class="share-box"><div class="share-title">Share Results</div><div class="share-btns"><div class="share-btn">Post</div><div class="share-btn">Message</div><div class="share-btn">Email</div><div class="share-btn">Copy</div></div></div></div>
+    <div class="spacer"></div>
+  </div>
+</div>
+
+
+<!-- ==================== CONCEPT M: Crowd Horizon Score ==================== -->
+<div class="concept" id="concept-m">
+  <div class="concept-label">
+    <h2>M: Dark Score Card with Crowd Horizon</h2>
+    <p>Same light-theme layout, but the score card is a dark gradient with the crowd silhouette along the bottom edge — like looking at a stage from the audience.</p>
+  </div>
+  <div class="phone-frame">
+    <div style="padding: 24px 24px 0;">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px;">
+        <div>
+          <h1 style="font-size:22px;font-weight:800;">Late Night Drive</h1>
+          <span class="when-complete"><span style="display:inline-block;margin-top:4px;padding:2px 10px;border-radius:999px;font-size:11px;font-weight:600;background:var(--primary);color:white;">Complete</span></span>
+          <span class="when-collecting"><span style="display:inline-flex;align-items:center;gap:6px;margin-top:4px;padding:2px 10px;border-radius:999px;font-size:11px;font-weight:600;background:oklch(0.95 0.03 145);color:oklch(0.4 0.15 145);"><span class="pulse-dot"></span> Collecting</span></span>
+        </div>
+        <span style="font-size:13px;color:var(--muted);cursor:pointer;">Delete</span>
+      </div>
+
+      <div class="when-collecting" style="margin-bottom:24px;">
+        <div class="progress-bar"><div class="progress-fill" style="width:40%;"></div></div>
+        <div class="progress-text">8 of 20 votes collected</div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;padding:14px 16px;background:var(--muted-bg);border-radius:14px;">
+        <div class="play-btn"></div>
+        <div class="waveform" id="wf-m"></div>
+        <div class="time-label">0:00 / 0:30</div>
+      </div>
+    </div>
+
+    <!-- Dark score card with crowd -->
+    <div class="when-complete">
+      <div class="m-score-card">
+        <div class="m-score-inner">
+          <div class="m-score-label">Overall Virality Score</div>
+          <div class="m-score-num">78%</div>
+          <div class="m-percentile">Top 15% of all tracks tested</div>
+        </div>
+        <div class="m-crowd-horizon" style="color:white;">
+          <svg class="crowd-svg" style="height:100%;" preserveAspectRatio="xMidYMax slice"><use href="#crowd-dense"/></svg>
+        </div>
+      </div>
+    </div>
+    <div class="when-collecting">
+      <div class="m-score-card" style="background:linear-gradient(160deg, oklch(0.25 0.1 293), oklch(0.35 0.15 310));border:2px dashed oklch(0.5 0.15 293);">
+        <div class="m-score-inner">
+          <div class="m-prelim-note"><span class="pulse-dot"></span> Preliminary Score</div>
+          <div class="m-score-num" style="opacity:0.5;font-size:48px;">~62%</div>
+          <div class="m-percentile" style="font-style:italic;">Based on 8 votes — may shift</div>
+        </div>
+        <div class="m-crowd-horizon" style="color:white;opacity:0.2;">
+          <svg class="crowd-svg" style="height:100%;" preserveAspectRatio="xMidYMax slice"><use href="#crowd-dense"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Dimension Breakdown</div>
+      <div class="dim-row"><div class="dim-header"><span class="dim-label">🎣 Hook Factor</span><span class="dim-pct">85%</span></div><div class="dim-bar"><div class="dim-bar-fill m-dim-bar-fill glow" style="width:85%;background:linear-gradient(90deg, var(--primary), oklch(0.65 0.22 293));border-radius:5px;"></div></div></div>
+      <div class="dim-row"><div class="dim-header"><span class="dim-label">🧠 Memorability</span><span class="dim-pct">72%</span></div><div class="dim-bar"><div class="dim-bar-fill" style="width:72%;background:var(--primary);border-radius:5px;"></div></div></div>
+      <div class="dim-row"><div class="dim-header"><span class="dim-label">💃 Movement</span><span class="dim-pct">90%</span></div><div class="dim-bar"><div class="dim-bar-fill m-dim-bar-fill glow" style="width:90%;background:linear-gradient(90deg, var(--primary), oklch(0.65 0.22 293));border-radius:5px;"></div></div></div>
+      <div class="dim-row"><div class="dim-header"><span class="dim-label">✨ Trend Fit</span><span class="dim-pct" style="color:oklch(0.6 0.2 293);">58%</span></div><div class="dim-bar"><div class="dim-bar-fill" style="width:58%;background:oklch(0.606 0.25 292.717);border-radius:5px;"></div></div></div>
+    </div>
+
+    <div class="when-complete">
+      <div class="section">
+        <div class="section-title">Insights</div>
+        <div class="insight-card success"><div class="insight-title">Strong hook — Movement score is exceptional</div><div class="insight-desc">Your track's rhythmic elements tested in the top tier.</div></div>
+        <div class="insight-card warning"><div class="insight-title">Room to grow — Trend alignment</div><div class="insight-desc">Adjusting production to match current sounds could push this further.</div></div>
+      </div>
+    </div>
+
+    <div class="section"><div class="share-box"><div class="share-title">Share Results</div><div class="share-btns"><div class="share-btn">Post</div><div class="share-btn">Message</div><div class="share-btn">Email</div><div class="share-btn">Copy</div></div></div></div>
+    <div class="spacer"></div>
+  </div>
+</div>
+
+
+<!-- ==================== CONCEPT N: Spotlight ==================== -->
+<div class="concept" id="concept-n">
+  <div class="concept-label">
+    <h2>N: Spotlight Score + Minimal Crowd Strip</h2>
+    <p>Lightest touch. Subtle spotlight gradient behind the score, a very thin crowd silhouette strip at bottom of score card. Stage-light indicator dots on dimensions.</p>
+  </div>
+  <div class="phone-frame">
+    <div style="padding: 24px 24px 0;">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px;">
+        <div>
+          <h1 style="font-size:22px;font-weight:800;">Late Night Drive</h1>
+          <span class="when-complete"><span style="display:inline-block;margin-top:4px;padding:2px 10px;border-radius:999px;font-size:11px;font-weight:600;background:var(--primary);color:white;">Complete</span></span>
+          <span class="when-collecting"><span style="display:inline-flex;align-items:center;gap:6px;margin-top:4px;padding:2px 10px;border-radius:999px;font-size:11px;font-weight:600;background:oklch(0.95 0.03 145);color:oklch(0.4 0.15 145);"><span class="pulse-dot"></span> Collecting</span></span>
+        </div>
+        <span style="font-size:13px;color:var(--muted);cursor:pointer;">Delete</span>
+      </div>
+
+      <div class="when-collecting" style="margin-bottom:24px;">
+        <div class="progress-bar"><div class="progress-fill" style="width:40%;"></div></div>
+        <div class="progress-text">8 of 20 votes collected</div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;padding:14px 16px;border:1px solid var(--border);border-radius:14px;">
+        <div class="play-btn"></div>
+        <div class="waveform" id="wf-n"></div>
+        <div class="time-label">0:00 / 0:30</div>
+      </div>
+    </div>
+
+    <!-- Score with spotlight -->
+    <div style="padding:0 24px;">
+      <div class="when-complete">
+        <div class="n-score-section" style="margin-bottom:24px;">
+          <div class="n-spotlight"></div>
+          <div class="n-score-inner">
+            <div class="n-score-label">Overall Virality Score</div>
+            <div class="n-score-num">78%</div>
+            <div class="n-percentile">Top 15% of all tracks tested</div>
+          </div>
+          <div class="n-crowd-strip" style="color:var(--primary);">
+            <svg class="crowd-svg" style="height:100%;" preserveAspectRatio="xMidYMax slice"><use href="#crowd-no-hands"/></svg>
+          </div>
+        </div>
+      </div>
+      <div class="when-collecting">
+        <div class="n-score-section" style="margin-bottom:24px;border-style:dashed;border-width:2px;border-color:oklch(0.85 0.08 293);">
+          <div class="n-spotlight" style="opacity:0.5;"></div>
+          <div class="n-score-inner">
+            <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:2px;">
+              <span class="pulse-dot"></span>
+              <span class="n-score-label">Preliminary Score</span>
+            </div>
+            <div class="n-score-num" style="opacity:0.6;">~62%</div>
+            <div class="n-percentile" style="font-style:italic;">Based on 8 votes — may shift</div>
+          </div>
+          <div class="n-crowd-strip" style="color:var(--primary);opacity:0.06;">
+            <svg class="crowd-svg" style="height:100%;" preserveAspectRatio="xMidYMax slice"><use href="#crowd-no-hands"/></svg>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dimensions with indicator dots -->
+    <div class="section">
+      <div class="section-title">Dimension Breakdown</div>
+      <div class="dim-row n-dim-row">
+        <div class="dim-header"><span class="dim-label">🎣 Hook Factor</span><span class="dim-pct">85%</span></div>
+        <div class="dim-bar"><div class="dim-bar-fill" style="width:85%;background:var(--primary);border-radius:5px;"></div></div>
+      </div>
+      <div class="dim-row n-dim-row">
+        <div class="dim-header"><span class="dim-label">🧠 Memorability</span><span class="dim-pct">72%</span></div>
+        <div class="dim-bar"><div class="dim-bar-fill" style="width:72%;background:var(--primary);border-radius:5px;"></div></div>
+      </div>
+      <div class="dim-row n-dim-row">
+        <div class="dim-header"><span class="dim-label">💃 Movement</span><span class="dim-pct">90%</span></div>
+        <div class="dim-bar"><div class="dim-bar-fill" style="width:90%;background:var(--primary);border-radius:5px;"></div></div>
+      </div>
+      <div class="dim-row n-dim-row">
+        <div class="dim-header"><span class="dim-label">✨ Trend Fit</span><span class="dim-pct" style="color:oklch(0.6 0.2 293);">58%</span></div>
+        <div class="dim-bar"><div class="dim-bar-fill" style="width:58%;background:oklch(0.606 0.25 292.717);border-radius:5px;"></div></div>
+      </div>
+    </div>
+
+    <div class="when-complete">
+      <div class="section">
+        <div class="section-title">Insights</div>
+        <div class="insight-card success"><div class="insight-title">Strong hook — Movement score is exceptional</div><div class="insight-desc">Your track's rhythmic elements tested in the top tier.</div></div>
+        <div class="insight-card warning"><div class="insight-title">Room to grow — Trend alignment</div><div class="insight-desc">Adjusting production to match current sounds could push this further.</div></div>
+      </div>
+    </div>
+
+    <div class="section"><div class="share-box"><div class="share-title">Share Results</div><div class="share-btns"><div class="share-btn">Post</div><div class="share-btn">Message</div><div class="share-btn">Email</div><div class="share-btn">Copy</div></div></div></div>
+    <div class="spacer"></div>
+  </div>
+</div>
+
+
+<script>
+  function show(id) {
+    document.querySelectorAll('.concept').forEach(c => c.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('concept-' + id).classList.add('active');
+    event.target.classList.add('active');
+  }
+  function toggleState() {
+    const isCollecting = document.body.classList.toggle('collecting');
+    document.getElementById('state-toggle').classList.toggle('on', isCollecting);
+    document.getElementById('label-complete').classList.toggle('active-label', !isCollecting);
+    document.getElementById('label-collecting').classList.toggle('active-label', isCollecting);
+  }
+  function genWaveform(id, count) {
+    const c = document.getElementById(id);
+    if (!c) return;
+    for (let i = 0; i < count; i++) {
+      const bar = document.createElement('div');
+      bar.className = 'bar' + (i / count < 0.4 ? ' filled' : '');
+      bar.style.height = (20 + Math.random() * 80) + '%';
+      c.appendChild(bar);
+    }
+  }
+  genWaveform('wf-k', 40);
+  genWaveform('wf-l', 40);
+  genWaveform('wf-m', 40);
+  genWaveform('wf-n', 40);
+</script>
+</body>
+</html>

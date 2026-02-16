@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Soundcheck — Thick Bar Variations</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --primary: oklch(0.541 0.281 293.009);
+    --primary-light: oklch(0.75 0.15 293);
+    --primary-faint: oklch(0.95 0.03 293);
+    --bg: #fff;
+    --fg: #111;
+    --muted: #888;
+    --muted-bg: #f5f5f5;
+    --border: #e5e5e5;
+    --green: #22c55e;
+    --yellow: #eab308;
+  }
+  body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f0f0; color: var(--fg); line-height: 1.5; }
+
+  .nav { position: sticky; top: 0; z-index: 100; background: rgba(255,255,255,0.92); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .nav h1 { font-size: 15px; font-weight: 700; white-space: nowrap; }
+  .nav .tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+  .nav .tab { padding: 5px 12px; border-radius: 999px; font-size: 12px; font-weight: 600; cursor: pointer; border: 2px solid var(--border); background: white; transition: all 0.2s; }
+  .nav .tab:hover { border-color: var(--primary); color: var(--primary); }
+  .nav .tab.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+  .state-toggle { display: flex; align-items: center; gap: 8px; margin-left: 12px; padding-left: 12px; border-left: 1px solid var(--border); }
+  .state-toggle label { font-size: 12px; font-weight: 600; color: var(--muted); cursor: pointer; }
+  .state-toggle label.active-label { color: var(--fg); }
+  .toggle-track { width: 36px; height: 20px; background: var(--muted-bg); border: 1.5px solid var(--border); border-radius: 10px; position: relative; cursor: pointer; transition: background 0.2s; }
+  .toggle-track.on { background: var(--primary); border-color: var(--primary); }
+  .toggle-knob { width: 14px; height: 14px; background: white; border-radius: 50%; position: absolute; top: 2px; left: 2px; transition: left 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+  .toggle-track.on .toggle-knob { left: 18px; }
+
+  .when-complete { display: block; }
+  .when-collecting { display: none; }
+  body.collecting .when-complete { display: none; }
+  body.collecting .when-collecting { display: block; }
+
+  .pulse-dot { position: relative; display: inline-flex; width: 8px; height: 8px; }
+  .pulse-dot::before { content: ''; position: absolute; inset: 0; border-radius: 50%; background: var(--green); animation: pulse-ring 1.5s ease infinite; }
+  .pulse-dot::after { content: ''; position: relative; width: 8px; height: 8px; border-radius: 50%; background: var(--green); }
+  @keyframes pulse-ring { 0% { transform: scale(1); opacity: 0.7; } 100% { transform: scale(2.2); opacity: 0; } }
+
+  .concept { display: none; max-width: 480px; margin: 32px auto; padding-bottom: 48px; }
+  .concept.active { display: block; }
+  .concept-label { text-align: center; margin-bottom: 24px; }
+  .concept-label h2 { font-size: 20px; font-weight: 800; margin-bottom: 4px; }
+  .concept-label p { color: var(--muted); font-size: 13px; max-width: 420px; margin: 0 auto; }
+  .phone-frame { background: var(--bg); border-radius: 24px; box-shadow: 0 8px 40px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.06); overflow: hidden; }
+
+  .play-btn { width: 40px; height: 40px; border-radius: 50%; background: var(--primary); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .play-btn::after { content: ''; width: 0; height: 0; border-left: 10px solid white; border-top: 6px solid transparent; border-bottom: 6px solid transparent; margin-left: 2px; }
+  .waveform { flex: 1; height: 32px; display: flex; align-items: end; gap: 2px; }
+  .waveform .bar { flex: 1; border-radius: 2px 2px 0 0; background: var(--primary); opacity: 0.3; }
+  .waveform .bar.filled { opacity: 1; }
+  .time-label { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+
+  .section { padding: 0 24px; margin-bottom: 24px; }
+  .section-title { font-size: 14px; font-weight: 700; margin-bottom: 12px; }
+  .spacer { height: 32px; }
+
+  .progress-bar { height: 6px; background: var(--muted-bg); border-radius: 3px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 3px; background: var(--primary); }
+  .progress-text { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+  .insight-card { padding: 14px; border-radius: 12px; margin-bottom: 10px; border-left: 4px solid; }
+  .insight-card.success { border-color: var(--green); background: oklch(0.97 0.03 145); }
+  .insight-card.warning { border-color: var(--yellow); background: oklch(0.97 0.04 85); }
+  .insight-title { font-size: 13px; font-weight: 700; }
+  .insight-desc { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  .share-box { padding: 16px; border-radius: 14px; border: 1px solid var(--border); }
+  .share-title { font-size: 12px; font-weight: 700; color: var(--muted); margin-bottom: 10px; }
+  .share-btns { display: flex; gap: 8px; }
+  .share-btn { flex: 1; padding: 8px; border-radius: 8px; background: var(--muted-bg); border: 1px solid var(--border); font-size: 12px; font-weight: 600; text-align: center; cursor: pointer; }
+
+  .crowd-svg { display: block; width: 100%; }
+
+  /* M score */
+  .m-score-card { margin: 0 24px 24px; border-radius: 20px; overflow: hidden; background: linear-gradient(160deg, oklch(0.3 0.15 293), oklch(0.45 0.22 310)); color: white; position: relative; }
+  .m-score-inner { padding: 28px 24px 12px; text-align: center; position: relative; z-index: 2; }
+  .m-score-label { font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 1px; }
+  .m-score-num { font-size: 56px; font-weight: 900; line-height: 1; margin-top: 4px; text-shadow: 0 2px 20px rgba(255,255,255,0.2); }
+  .m-percentile { font-size: 13px; color: rgba(255,255,255,0.5); margin-top: 8px; }
+  .m-crowd { height: 40px; position: relative; z-index: 1; opacity: 0.35; margin-top: -8px; }
+  .m-prelim { display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 6px; font-size: 11px; color: rgba(255,255,255,0.4); }
+
+  /* N score */
+  .n-score-section { margin: 0 24px 24px; border-radius: 20px; overflow: hidden; position: relative; background: white; border: 1px solid var(--border); }
+  .n-spotlight { position: absolute; top: -20px; left: 50%; transform: translateX(-50%); width: 200px; height: 120px; background: radial-gradient(ellipse, oklch(0.7 0.15 293 / 0.12), transparent 70%); pointer-events: none; }
+  .n-score-inner { position: relative; z-index: 2; padding: 28px 24px 8px; text-align: center; }
+  .n-score-label { font-size: 13px; font-weight: 600; color: var(--muted); }
+  .n-score-num { font-size: 48px; font-weight: 800; color: var(--primary); line-height: 1; margin-top: 4px; }
+  .n-percentile { font-size: 13px; color: var(--muted); margin-top: 6px; font-weight: 500; }
+  .n-crowd { height: 28px; opacity: 0.12; margin-top: 4px; }
+
+  /* ============================================
+     THICK BAR VARIATIONS
+     ============================================ */
+
+  /* V1: Rounded pill bars, number inside right-aligned */
+  .tb1-row { margin-bottom: 10px; }
+  .tb1-label { font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
+  .tb1-bar { height: 36px; background: var(--muted-bg); border-radius: 18px; overflow: hidden; position: relative; }
+  .tb1-fill { height: 100%; border-radius: 18px; display: flex; align-items: center; justify-content: flex-end; padding-right: 12px; }
+  .tb1-val { font-size: 13px; font-weight: 800; color: white; }
+
+  /* V2: Pill bars, number outside to the right */
+  .tb2-row { margin-bottom: 10px; display: flex; align-items: center; gap: 10px; }
+  .tb2-info { width: 100px; flex-shrink: 0; }
+  .tb2-label { font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 5px; }
+  .tb2-bar { flex: 1; height: 28px; background: var(--muted-bg); border-radius: 14px; overflow: hidden; }
+  .tb2-fill { height: 100%; border-radius: 14px; }
+  .tb2-val { font-size: 15px; font-weight: 800; width: 40px; text-align: right; flex-shrink: 0; }
+
+  /* V3: Segmented bars (like a battery/signal indicator) */
+  .tb3-row { margin-bottom: 14px; }
+  .tb3-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  .tb3-label { font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+  .tb3-val { font-size: 15px; font-weight: 800; }
+  .tb3-segments { display: flex; gap: 3px; }
+  .tb3-seg { flex: 1; height: 24px; border-radius: 4px; background: var(--muted-bg); }
+  .tb3-seg.filled { background: var(--primary); }
+  .tb3-seg.filled.med { background: oklch(0.606 0.25 292.717); }
+  .tb3-seg.filled.low { background: oklch(0.491 0.27 292.581); }
+
+  /* V4: Gradient thick bars with emoji icon badge on left */
+  .tb4-row { margin-bottom: 12px; display: flex; align-items: center; gap: 10px; }
+  .tb4-icon { width: 36px; height: 36px; border-radius: 10px; background: var(--muted-bg); display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+  .tb4-content { flex: 1; }
+  .tb4-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+  .tb4-name { font-size: 12px; font-weight: 600; }
+  .tb4-val { font-size: 14px; font-weight: 800; }
+  .tb4-bar { height: 20px; background: var(--muted-bg); border-radius: 10px; overflow: hidden; }
+  .tb4-fill { height: 100%; border-radius: 10px; }
+
+  /* V5: Full-width bars with label overlaid left, number overlaid right */
+  .tb5-row { margin-bottom: 8px; }
+  .tb5-bar { height: 44px; background: var(--muted-bg); border-radius: 12px; overflow: hidden; position: relative; }
+  .tb5-fill { height: 100%; border-radius: 12px; position: absolute; top: 0; left: 0; }
+  .tb5-overlay { position: relative; z-index: 2; height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 14px; }
+  .tb5-label { font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+  .tb5-val { font-size: 16px; font-weight: 900; }
+
+  /* V6: Stacked horizontal bars, no label above — label is inside the bar left-aligned */
+  .tb6-row { margin-bottom: 6px; }
+  .tb6-bar { height: 40px; background: var(--muted-bg); border-radius: 12px; overflow: hidden; position: relative; }
+  .tb6-fill { height: 100%; border-radius: 12px; position: absolute; top: 0; left: 0; opacity: 0.15; }
+  .tb6-overlay { position: relative; z-index: 2; height: 40px; display: flex; align-items: center; padding: 0 14px; gap: 8px; }
+  .tb6-emoji { font-size: 16px; }
+  .tb6-name { font-size: 12px; font-weight: 600; flex: 1; }
+  .tb6-val { font-size: 16px; font-weight: 900; }
+  .tb6-mini-bar { width: 60px; height: 6px; background: var(--muted-bg); border-radius: 3px; overflow: hidden; flex-shrink: 0; }
+  .tb6-mini-fill { height: 100%; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <h1>Thick Bar Variations</h1>
+  <div class="tabs">
+    <div class="tab active" onclick="show('m1')">M + Pill Inside</div>
+    <div class="tab" onclick="show('m2')">M + Pill Outside</div>
+    <div class="tab" onclick="show('m3')">M + Segments</div>
+    <div class="tab" onclick="show('n1')">N + Icon Bars</div>
+    <div class="tab" onclick="show('n2')">N + Full Overlay</div>
+    <div class="tab" onclick="show('n3')">N + Inline Label</div>
+  </div>
+  <div class="state-toggle">
+    <label id="label-complete" class="active-label">Complete</label>
+    <div class="toggle-track" id="state-toggle" onclick="toggleState()"><div class="toggle-knob"></div></div>
+    <label id="label-collecting">Collecting</label>
+  </div>
+</nav>
+
+<!-- Single-row crowd SVG (bodies, no raised hands) -->
+<svg style="display:none;">
+  <defs>
+    <symbol id="crowd" viewBox="0 0 480 56">
+      <linearGradient id="cg" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="currentColor" stop-opacity="0.65"/>
+        <stop offset="1" stop-color="currentColor" stop-opacity="0.15"/>
+      </linearGradient>
+      <path d="M4,20 a7,7 0 1,1 14,0 a7,7 0 1,1 -14,0 M0,56 L0,36 Q0,28 11,28 Q22,28 22,36 L22,56Z" fill="url(#cg)"/>
+      <path d="M26,16 a8,8 0 1,1 16,0 a8,8 0 1,1 -16,0 M21,56 L21,32 Q21,24 34,24 Q47,24 47,32 L47,56Z" fill="url(#cg)"/>
+      <path d="M52,21 a6.5,6.5 0 1,1 13,0 a6.5,6.5 0 1,1 -13,0 M48,56 L48,37 Q48,29 58.5,29 Q69,29 69,37 L69,56Z" fill="url(#cg)"/>
+      <path d="M74,15 a8.5,8.5 0 1,1 17,0 a8.5,8.5 0 1,1 -17,0 M69,56 L69,31 Q69,23 82.5,23 Q96,23 96,31 L96,56Z" fill="url(#cg)"/>
+      <path d="M100,19 a7,7 0 1,1 14,0 a7,7 0 1,1 -14,0 M96,56 L96,35 Q96,27 107,27 Q118,27 118,35 L118,56Z" fill="url(#cg)"/>
+      <path d="M124,16 a8,8 0 1,1 16,0 a8,8 0 1,1 -16,0 M119,56 L119,32 Q119,24 132,24 Q145,24 145,32 L145,56Z" fill="url(#cg)"/>
+      <path d="M150,21 a6.5,6.5 0 1,1 13,0 a6.5,6.5 0 1,1 -13,0 M146,56 L146,37 Q146,29 156.5,29 Q167,29 167,37 L167,56Z" fill="url(#cg)"/>
+      <path d="M172,15 a8.5,8.5 0 1,1 17,0 a8.5,8.5 0 1,1 -17,0 M167,56 L167,31 Q167,23 180.5,23 Q194,23 194,31 L194,56Z" fill="url(#cg)"/>
+      <path d="M198,19 a7,7 0 1,1 14,0 a7,7 0 1,1 -14,0 M194,56 L194,35 Q194,27 205,27 Q216,27 216,35 L216,56Z" fill="url(#cg)"/>
+      <path d="M222,15 a8.5,8.5 0 1,1 17,0 a8.5,8.5 0 1,1 -17,0 M217,56 L217,31 Q217,23 230.5,23 Q244,23 244,31 L244,56Z" fill="url(#cg)"/>
+      <path d="M248,20 a7,7 0 1,1 14,0 a7,7 0 1,1 -14,0 M244,56 L244,36 Q244,28 255,28 Q266,28 266,36 L266,56Z" fill="url(#cg)"/>
+      <path d="M272,16 a8,8 0 1,1 16,0 a8,8 0 1,1 -16,0 M267,56 L267,32 Q267,24 280,24 Q293,24 293,32 L293,56Z" fill="url(#cg)"/>
+      <path d="M298,21 a6.5,6.5 0 1,1 13,0 a6.5,6.5 0 1,1 -13,0 M294,56 L294,37 Q294,29 304.5,29 Q315,29 315,37 L315,56Z" fill="url(#cg)"/>
+      <path d="M320,15 a8.5,8.5 0 1,1 17,0 a8.5,8.5 0 1,1 -17,0 M315,56 L315,31 Q315,23 328.5,23 Q342,23 342,31 L342,56Z" fill="url(#cg)"/>
+      <path d="M346,19 a7,7 0 1,1 14,0 a7,7 0 1,1 -14,0 M342,56 L342,35 Q342,27 353,27 Q364,27 364,35 L364,56Z" fill="url(#cg)"/>
+      <path d="M370,16 a8,8 0 1,1 16,0 a8,8 0 1,1 -16,0 M365,56 L365,32 Q365,24 378,24 Q391,24 391,32 L391,56Z" fill="url(#cg)"/>
+      <path d="M396,20 a7,7 0 1,1 14,0 a7,7 0 1,1 -14,0 M392,56 L392,36 Q392,28 403,28 Q414,28 414,36 L414,56Z" fill="url(#cg)"/>
+      <path d="M420,16 a8,8 0 1,1 16,0 a8,8 0 1,1 -16,0 M415,56 L415,32 Q415,24 428,24 Q441,24 441,32 L441,56Z" fill="url(#cg)"/>
+      <path d="M446,19 a7,7 0 1,1 14,0 a7,7 0 1,1 -14,0 M442,56 L442,35 Q442,27 453,27 Q464,27 464,35 L464,56Z" fill="url(#cg)"/>
+      <path d="M468,16 a7,7 0 1,1 14,0 a7,7 0 1,1 -14,0 M464,56 L464,32 Q464,25 475,25 Q486,25 486,32 L486,56Z" fill="url(#cg)"/>
+    </symbol>
+  </defs>
+</svg>
+
+<div class="concept active" id="concept-m1"><div class="concept-label"><h2>M + Pill Bars (number inside)</h2><p>Rounded pill-shaped bars with percentage right-aligned inside the filled area.</p></div><div class="phone-frame" id="frame-m1"></div></div>
+<div class="concept" id="concept-m2"><div class="concept-label"><h2>M + Pill Bars (number outside)</h2><p>Pill bars with label on left, bar in the middle, bold number on the right.</p></div><div class="phone-frame" id="frame-m2"></div></div>
+<div class="concept" id="concept-m3"><div class="concept-label"><h2>M + Segmented Bars</h2><p>Battery/signal-style segmented blocks. Filled segments = score level.</p></div><div class="phone-frame" id="frame-m3"></div></div>
+<div class="concept" id="concept-n1"><div class="concept-label"><h2>N + Icon Badge Bars</h2><p>Emoji in a rounded square badge, bar with gradient fill, number right-aligned.</p></div><div class="phone-frame" id="frame-n1"></div></div>
+<div class="concept" id="concept-n2"><div class="concept-label"><h2>N + Full Overlay Bars</h2><p>Wide bars where label and number are overlaid on top of the fill. Reads like a status row.</p></div><div class="phone-frame" id="frame-n2"></div></div>
+<div class="concept" id="concept-n3"><div class="concept-label"><h2>N + Inline Label Bars</h2><p>Subtle tinted background bar, emoji + name + mini bar + number all in one row.</p></div><div class="phone-frame" id="frame-n3"></div></div>
+
+<script>
+function show(id) {
+  document.querySelectorAll('.concept').forEach(c => c.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('concept-' + id).classList.add('active');
+  event.target.classList.add('active');
+}
+function toggleState() {
+  const isCollecting = document.body.classList.toggle('collecting');
+  document.getElementById('state-toggle').classList.toggle('on', isCollecting);
+  document.getElementById('label-complete').classList.toggle('active-label', !isCollecting);
+  document.getElementById('label-collecting').classList.toggle('active-label', isCollecting);
+}
+
+function headerHTML() {
+  return `<div style="padding:24px 24px 0;">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px;">
+      <div>
+        <h1 style="font-size:22px;font-weight:800;">Late Night Drive</h1>
+        <span class="when-complete"><span style="display:inline-block;margin-top:4px;padding:2px 10px;border-radius:999px;font-size:11px;font-weight:600;background:var(--primary);color:white;">Complete</span></span>
+        <span class="when-collecting"><span style="display:inline-flex;align-items:center;gap:6px;margin-top:4px;padding:2px 10px;border-radius:999px;font-size:11px;font-weight:600;background:oklch(0.95 0.03 145);color:oklch(0.4 0.15 145);"><span class="pulse-dot"></span> Collecting</span></span>
+      </div>
+      <span style="font-size:13px;color:var(--muted);cursor:pointer;">Delete</span>
+    </div>
+    <div class="when-collecting" style="margin-bottom:24px;">
+      <div class="progress-bar"><div class="progress-fill" style="width:40%;"></div></div>
+      <div class="progress-text">8 of 20 votes collected</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;padding:14px 16px;background:var(--muted-bg);border-radius:14px;">
+      <div class="play-btn"></div>
+      <div class="waveform" data-wf></div>
+      <div class="time-label">0:00 / 0:30</div>
+    </div>
+  </div>`;
+}
+
+function mScoreHTML() {
+  return `
+  <div class="when-complete">
+    <div class="m-score-card">
+      <div class="m-score-inner"><div class="m-score-label">Overall Virality Score</div><div class="m-score-num">78%</div><div class="m-percentile">Top 15% of all tracks tested</div></div>
+      <div class="m-crowd" style="color:white;"><svg class="crowd-svg" style="height:100%;" preserveAspectRatio="xMidYMax slice"><use href="#crowd"/></svg></div>
+    </div>
+  </div>
+  <div class="when-collecting">
+    <div class="m-score-card" style="background:linear-gradient(160deg,oklch(0.25 0.1 293),oklch(0.35 0.15 310));border:2px dashed oklch(0.5 0.15 293);">
+      <div class="m-score-inner"><div class="m-prelim"><span class="pulse-dot"></span> Preliminary Score</div><div class="m-score-num" style="opacity:0.5;font-size:48px;">~62%</div><div class="m-percentile" style="font-style:italic;">Based on 8 votes — may shift</div></div>
+      <div class="m-crowd" style="color:white;opacity:0.2;"><svg class="crowd-svg" style="height:100%;" preserveAspectRatio="xMidYMax slice"><use href="#crowd"/></svg></div>
+    </div>
+  </div>`;
+}
+
+function nScoreHTML() {
+  return `<div style="padding:0 24px;">
+    <div class="when-complete">
+      <div class="n-score-section" style="margin-bottom:24px;">
+        <div class="n-spotlight"></div>
+        <div class="n-score-inner"><div class="n-score-label">Overall Virality Score</div><div class="n-score-num">78%</div><div class="n-percentile">Top 15% of all tracks tested</div></div>
+        <div class="n-crowd" style="color:var(--primary);"><svg class="crowd-svg" style="height:100%;" preserveAspectRatio="xMidYMax slice"><use href="#crowd"/></svg></div>
+      </div>
+    </div>
+    <div class="when-collecting">
+      <div class="n-score-section" style="margin-bottom:24px;border-style:dashed;border-width:2px;border-color:oklch(0.85 0.08 293);">
+        <div class="n-spotlight" style="opacity:0.5;"></div>
+        <div class="n-score-inner"><div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:2px;"><span class="pulse-dot"></span><span class="n-score-label">Preliminary Score</span></div><div class="n-score-num" style="opacity:0.6;">~62%</div><div class="n-percentile" style="font-style:italic;">Based on 8 votes — may shift</div></div>
+        <div class="n-crowd" style="color:var(--primary);opacity:0.06;"><svg class="crowd-svg" style="height:100%;" preserveAspectRatio="xMidYMax slice"><use href="#crowd"/></svg></div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function insightsHTML() {
+  return `<div class="when-complete"><div class="section">
+    <div class="section-title">Insights</div>
+    <div class="insight-card success"><div class="insight-title">Strong hook — Movement score is exceptional</div><div class="insight-desc">Your track's rhythmic elements tested in the top tier.</div></div>
+    <div class="insight-card warning"><div class="insight-title">Room to grow — Trend alignment</div><div class="insight-desc">Adjusting production to match current sounds could push this further.</div></div>
+  </div></div>`;
+}
+function shareHTML() {
+  return `<div class="section"><div class="share-box"><div class="share-title">Share Results</div><div class="share-btns"><div class="share-btn">Post</div><div class="share-btn">Message</div><div class="share-btn">Email</div><div class="share-btn">Copy</div></div></div></div><div class="spacer"></div>`;
+}
+
+function col(pct) { return pct >= 70 ? 'var(--primary)' : pct >= 50 ? 'oklch(0.606 0.25 292.717)' : 'oklch(0.491 0.27 292.581)'; }
+function txtCol(pct) { return pct >= 70 ? 'var(--primary)' : pct >= 50 ? 'oklch(0.606 0.25 292.717)' : 'oklch(0.491 0.27 292.581)'; }
+
+// V1: Pill inside
+function tb1HTML() {
+  function row(e,n,p) { return `<div class="tb1-row"><div class="tb1-label">${e} ${n}</div><div class="tb1-bar"><div class="tb1-fill" style="width:${p}%;background:${col(p)};"><span class="tb1-val">${p}%</span></div></div></div>`; }
+  return `<div class="section"><div class="section-title">Dimension Breakdown</div>${row('🎣','Hook Factor',85)}${row('🧠','Memorability',72)}${row('💃','Movement',90)}${row('✨','Trend Fit',58)}</div>`;
+}
+
+// V2: Pill outside
+function tb2HTML() {
+  function row(e,n,p) { return `<div class="tb2-row"><div class="tb2-info"><div class="tb2-label">${e} ${n}</div></div><div class="tb2-bar"><div class="tb2-fill" style="width:${p}%;background:${col(p)};"></div></div><div class="tb2-val" style="color:${txtCol(p)};">${p}%</div></div>`; }
+  return `<div class="section"><div class="section-title">Dimension Breakdown</div>${row('🎣','Hook',85)}${row('🧠','Memory',72)}${row('💃','Movement',90)}${row('✨','Trend',58)}</div>`;
+}
+
+// V3: Segments
+function tb3HTML() {
+  function row(e,n,p) {
+    const total = 10;
+    const filled = Math.round(p / 10);
+    const cls = p >= 70 ? '' : p >= 50 ? ' med' : ' low';
+    let segs = '';
+    for (let i = 0; i < total; i++) segs += `<div class="tb3-seg${i < filled ? ' filled' + cls : ''}"></div>`;
+    return `<div class="tb3-row"><div class="tb3-header"><div class="tb3-label">${e} ${n}</div><div class="tb3-val" style="color:${txtCol(p)};">${p}%</div></div><div class="tb3-segments">${segs}</div></div>`;
+  }
+  return `<div class="section"><div class="section-title">Dimension Breakdown</div>${row('🎣','Hook Factor',85)}${row('🧠','Memorability',72)}${row('💃','Movement',90)}${row('✨','Trend Fit',58)}</div>`;
+}
+
+// V4: Icon badge bars
+function tb4HTML() {
+  function row(e,n,p) { return `<div class="tb4-row"><div class="tb4-icon">${e}</div><div class="tb4-content"><div class="tb4-top"><div class="tb4-name">${n}</div><div class="tb4-val" style="color:${txtCol(p)};">${p}%</div></div><div class="tb4-bar"><div class="tb4-fill" style="width:${p}%;background:linear-gradient(90deg,${col(p)},oklch(0.65 0.18 293));"></div></div></div></div>`; }
+  return `<div class="section"><div class="section-title">Dimension Breakdown</div>${row('🎣','Hook Factor',85)}${row('🧠','Memorability',72)}${row('💃','Movement',90)}${row('✨','Trend Fit',58)}</div>`;
+}
+
+// V5: Full overlay
+function tb5HTML() {
+  function row(e,n,p) {
+    const textCol = p > 60 ? 'white' : 'var(--fg)';
+    return `<div class="tb5-row"><div class="tb5-bar"><div class="tb5-fill" style="width:${p}%;background:${col(p)};"></div><div class="tb5-overlay"><div class="tb5-label" style="color:${p > 60 ? 'white' : 'var(--fg)'};">${e} ${n}</div><div class="tb5-val" style="color:${p > 60 ? 'white' : txtCol(p)};">${p}%</div></div></div></div>`;
+  }
+  return `<div class="section"><div class="section-title">Dimension Breakdown</div>${row('🎣','Hook Factor',85)}${row('🧠','Memorability',72)}${row('💃','Movement',90)}${row('✨','Trend Fit',58)}</div>`;
+}
+
+// V6: Inline label
+function tb6HTML() {
+  function row(e,n,p) { return `<div class="tb6-row"><div class="tb6-bar"><div class="tb6-fill" style="width:${p}%;background:${col(p)};"></div><div class="tb6-overlay"><div class="tb6-emoji">${e}</div><div class="tb6-name">${n}</div><div class="tb6-mini-bar"><div class="tb6-mini-fill" style="width:${p}%;background:${col(p)};"></div></div><div class="tb6-val" style="color:${txtCol(p)};">${p}%</div></div></div></div>`; }
+  return `<div class="section"><div class="section-title">Dimension Breakdown</div>${row('🎣','Hook Factor',85)}${row('🧠','Memorability',72)}${row('💃','Movement',90)}${row('✨','Trend Fit',58)}</div>`;
+}
+
+// Assemble
+function build(id, score, dims) { document.getElementById(id).innerHTML = headerHTML() + score + dims + insightsHTML() + shareHTML(); }
+
+build('frame-m1', mScoreHTML(), tb1HTML());
+build('frame-m2', mScoreHTML(), tb2HTML());
+build('frame-m3', mScoreHTML(), tb3HTML());
+build('frame-n1', nScoreHTML(), tb4HTML());
+build('frame-n2', nScoreHTML(), tb5HTML());
+build('frame-n3', nScoreHTML(), tb6HTML());
+
+document.querySelectorAll('[data-wf]').forEach(c => {
+  for (let i = 0; i < 40; i++) {
+    const bar = document.createElement('div');
+    bar.className = 'bar' + (i / 40 < 0.4 ? ' filled' : '');
+    bar.style.height = (20 + Math.random() * 80) + '%';
+    c.appendChild(bar);
+  }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Soundcheck — Dimension Layout Variations</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --primary: oklch(0.541 0.281 293.009);
+    --primary-light: oklch(0.75 0.15 293);
+    --primary-faint: oklch(0.95 0.03 293);
+    --bg: #fff;
+    --fg: #111;
+    --muted: #888;
+    --muted-bg: #f5f5f5;
+    --border: #e5e5e5;
+    --green: #22c55e;
+    --yellow: #eab308;
+  }
+  body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f0f0; color: var(--fg); line-height: 1.5; }
+
+  .nav { position: sticky; top: 0; z-index: 100; background: rgba(255,255,255,0.92); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .nav h1 { font-size: 15px; font-weight: 700; white-space: nowrap; }
+  .nav .tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+  .nav .tab { padding: 5px 12px; border-radius: 999px; font-size: 12px; font-weight: 600; cursor: pointer; border: 2px solid var(--border); background: white; transition: all 0.2s; }
+  .nav .tab:hover { border-color: var(--primary); color: var(--primary); }
+  .nav .tab.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+  .state-toggle { display: flex; align-items: center; gap: 8px; margin-left: 12px; padding-left: 12px; border-left: 1px solid var(--border); }
+  .state-toggle label { font-size: 12px; font-weight: 600; color: var(--muted); cursor: pointer; }
+  .state-toggle label.active-label { color: var(--fg); }
+  .toggle-track { width: 36px; height: 20px; background: var(--muted-bg); border: 1.5px solid var(--border); border-radius: 10px; position: relative; cursor: pointer; transition: background 0.2s; }
+  .toggle-track.on { background: var(--primary); border-color: var(--primary); }
+  .toggle-knob { width: 14px; height: 14px; background: white; border-radius: 50%; position: absolute; top: 2px; left: 2px; transition: left 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+  .toggle-track.on .toggle-knob { left: 18px; }
+
+  .when-complete { display: block; }
+  .when-collecting { display: none; }
+  body.collecting .when-complete { display: none; }
+  body.collecting .when-collecting { display: block; }
+
+  .pulse-dot { position: relative; display: inline-flex; width: 8px; height: 8px; }
+  .pulse-dot::before { content: ''; position: absolute; inset: 0; border-radius: 50%; background: var(--green); animation: pulse-ring 1.5s ease infinite; }
+  .pulse-dot::after { content: ''; position: relative; width: 8px; height: 8px; border-radius: 50%; background: var(--green); }
+  @keyframes pulse-ring { 0% { transform: scale(1); opacity: 0.7; } 100% { transform: scale(2.2); opacity: 0; } }
+
+  .concept { display: none; max-width: 480px; margin: 32px auto; padding-bottom: 48px; }
+  .concept.active { display: block; }
+  .concept-label { text-align: center; margin-bottom: 24px; }
+  .concept-label h2 { font-size: 20px; font-weight: 800; margin-bottom: 4px; }
+  .concept-label p { color: var(--muted); font-size: 13px; max-width: 420px; margin: 0 auto; }
+  .phone-frame { background: var(--bg); border-radius: 24px; box-shadow: 0 8px 40px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.06); overflow: hidden; }
+
+  .play-btn { width: 40px; height: 40px; border-radius: 50%; background: var(--primary); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .play-btn::after { content: ''; width: 0; height: 0; border-left: 10px solid white; border-top: 6px solid transparent; border-bottom: 6px solid transparent; margin-left: 2px; }
+  .waveform { flex: 1; height: 32px; display: flex; align-items: end; gap: 2px; }
+  .waveform .bar { flex: 1; border-radius: 2px 2px 0 0; background: var(--primary); opacity: 0.3; }
+  .waveform .bar.filled { opacity: 1; }
+  .time-label { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+
+  .section { padding: 0 24px; margin-bottom: 24px; }
+  .section-title { font-size: 14px; font-weight: 700; margin-bottom: 12px; }
+  .spacer { height: 32px; }
+
+  .progress-bar { height: 6px; background: var(--muted-bg); border-radius: 3px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 3px; background: var(--primary); }
+  .progress-text { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+  .insight-card { padding: 14px; border-radius: 12px; margin-bottom: 10px; border-left: 4px solid; }
+  .insight-card.success { border-color: var(--green); background: oklch(0.97 0.03 145); }
+  .insight-card.warning { border-color: var(--yellow); background: oklch(0.97 0.04 85); }
+  .insight-title { font-size: 13px; font-weight: 700; }
+  .insight-desc { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  .share-box { padding: 16px; border-radius: 14px; border: 1px solid var(--border); }
+  .share-title { font-size: 12px; font-weight: 700; color: var(--muted); margin-bottom: 10px; }
+  .share-btns { display: flex; gap: 8px; }
+  .share-btn { flex: 1; padding: 8px; border-radius: 8px; background: var(--muted-bg); border: 1px solid var(--border); font-size: 12px; font-weight: 600; text-align: center; cursor: pointer; }
+
+  .crowd-svg { display: block; width: 100%; }
+
+  /* Score cards shared between M/N variants */
+  .m-score-card { margin: 0 24px 24px; border-radius: 20px; overflow: hidden; background: linear-gradient(160deg, oklch(0.3 0.15 293), oklch(0.45 0.22 310)); color: white; position: relative; }
+  .m-score-inner { padding: 28px 24px 12px; text-align: center; position: relative; z-index: 2; }
+  .m-score-label { font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 1px; }
+  .m-score-num { font-size: 56px; font-weight: 900; line-height: 1; margin-top: 4px; text-shadow: 0 2px 20px rgba(255,255,255,0.2); }
+  .m-percentile { font-size: 13px; color: rgba(255,255,255,0.5); margin-top: 8px; }
+  .m-crowd-horizon { height: 44px; position: relative; z-index: 1; opacity: 0.35; margin-top: -8px; }
+  .m-prelim-note { display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 6px; font-size: 11px; color: rgba(255,255,255,0.4); }
+
+  .n-score-section { margin: 0 24px 24px; border-radius: 20px; overflow: hidden; position: relative; background: white; border: 1px solid var(--border); }
+  .n-spotlight { position: absolute; top: -20px; left: 50%; transform: translateX(-50%); width: 200px; height: 120px; background: radial-gradient(ellipse, oklch(0.7 0.15 293 / 0.12), transparent 70%); pointer-events: none; }
+  .n-score-inner { position: relative; z-index: 2; padding: 28px 24px 8px; text-align: center; }
+  .n-score-label { font-size: 13px; font-weight: 600; color: var(--muted); }
+  .n-score-num { font-size: 48px; font-weight: 800; color: var(--primary); line-height: 1; margin-top: 4px; }
+  .n-percentile { font-size: 13px; color: var(--muted); margin-top: 6px; font-weight: 500; }
+  .n-crowd-strip { height: 32px; opacity: 0.12; margin-top: 4px; }
+
+  /* ============================================
+     DIMENSION LAYOUT 1: 2x2 Grid Cards
+     ============================================ */
+  .dims-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .dim-grid-card {
+    padding: 16px;
+    border-radius: 14px;
+    background: var(--muted-bg);
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .dim-grid-card::before {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 4px;
+    border-radius: 0 0 14px 14px;
+  }
+  .dim-grid-card.high::before { background: var(--primary); }
+  .dim-grid-card.med::before { background: oklch(0.606 0.25 292.717); }
+  .dim-grid-card.low::before { background: oklch(0.491 0.27 292.581); }
+  .dim-grid-emoji { font-size: 20px; margin-bottom: 4px; }
+  .dim-grid-name { font-size: 11px; font-weight: 600; color: var(--muted); }
+  .dim-grid-val { font-size: 28px; font-weight: 900; color: var(--primary); margin-top: 2px; line-height: 1; }
+  .dim-grid-card.med .dim-grid-val { color: oklch(0.606 0.25 292.717); }
+  .dim-grid-card.low .dim-grid-val { color: oklch(0.491 0.27 292.581); }
+
+  /* ============================================
+     DIMENSION LAYOUT 2: Semi-circle gauges
+     ============================================ */
+  .dims-gauges {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  .dim-gauge {
+    text-align: center;
+    padding: 12px 8px 8px;
+  }
+  .dim-gauge-svg { width: 90px; height: 50px; margin: 0 auto; }
+  .dim-gauge-emoji { font-size: 14px; }
+  .dim-gauge-name { font-size: 11px; font-weight: 600; color: var(--muted); margin-top: 4px; }
+  .dim-gauge-val { font-size: 18px; font-weight: 800; color: var(--primary); line-height: 1; }
+
+  /* ============================================
+     DIMENSION LAYOUT 3: Thick rounded bars with number inside
+     ============================================ */
+  .dim-thick-row { margin-bottom: 10px; }
+  .dim-thick-label { font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 6px; margin-bottom: 4px; color: var(--fg); }
+  .dim-thick-bar { height: 32px; background: var(--muted-bg); border-radius: 10px; overflow: hidden; position: relative; }
+  .dim-thick-fill { height: 100%; border-radius: 10px; display: flex; align-items: center; justify-content: flex-end; padding-right: 10px; }
+  .dim-thick-val { font-size: 13px; font-weight: 800; color: white; text-shadow: 0 1px 2px rgba(0,0,0,0.2); }
+
+  /* ============================================
+     DIMENSION LAYOUT 4: Ring donuts in a row
+     ============================================ */
+  .dims-rings {
+    display: flex;
+    justify-content: space-between;
+    gap: 4px;
+  }
+  .dim-ring {
+    text-align: center;
+    flex: 1;
+  }
+  .dim-ring-svg { width: 64px; height: 64px; margin: 0 auto; }
+  .dim-ring-svg circle { fill: none; stroke-linecap: round; }
+  .dim-ring-svg .ring-bg { stroke: var(--muted-bg); stroke-width: 6; }
+  .dim-ring-svg .ring-fg { stroke-width: 6; transform: rotate(-90deg); transform-origin: center; }
+  .dim-ring-center { font-size: 14px; font-weight: 800; }
+  .dim-ring-emoji { font-size: 14px; margin-top: 6px; }
+  .dim-ring-name { font-size: 9px; font-weight: 700; color: var(--muted); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.3px; }
+
+  /* ============================================
+     DIMENSION LAYOUT 5: Vertical columns
+     ============================================ */
+  .dims-cols {
+    display: flex;
+    justify-content: space-around;
+    align-items: flex-end;
+    gap: 12px;
+    height: 160px;
+    padding: 0 8px;
+  }
+  .dim-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    height: 100%;
+    justify-content: flex-end;
+  }
+  .dim-col-val { font-size: 14px; font-weight: 800; color: var(--primary); }
+  .dim-col-bar-wrap {
+    width: 100%;
+    flex: 1;
+    background: var(--muted-bg);
+    border-radius: 10px;
+    display: flex;
+    align-items: flex-end;
+    overflow: hidden;
+  }
+  .dim-col-fill {
+    width: 100%;
+    border-radius: 10px;
+    min-height: 8px;
+  }
+  .dim-col-emoji { font-size: 16px; }
+  .dim-col-name { font-size: 9px; font-weight: 700; color: var(--muted); text-align: center; text-transform: uppercase; letter-spacing: 0.3px; }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <h1>Dimension Layouts</h1>
+  <div class="tabs">
+    <div class="tab active" onclick="show('m1')">M + Grid</div>
+    <div class="tab" onclick="show('m2')">M + Gauges</div>
+    <div class="tab" onclick="show('m3')">M + Thick Bars</div>
+    <div class="tab" onclick="show('n1')">N + Rings</div>
+    <div class="tab" onclick="show('n2')">N + Grid</div>
+    <div class="tab" onclick="show('n3')">N + Columns</div>
+  </div>
+  <div class="state-toggle">
+    <label id="label-complete" class="active-label">Complete</label>
+    <div class="toggle-track" id="state-toggle" onclick="toggleState()"><div class="toggle-knob"></div></div>
+    <label id="label-collecting">Collecting</label>
+  </div>
+</nav>
+
+<svg style="display:none;">
+  <defs>
+    <symbol id="crowd" viewBox="0 0 480 60">
+      <linearGradient id="cg" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="currentColor" stop-opacity="0.55"/>
+        <stop offset="1" stop-color="currentColor" stop-opacity="0.12"/>
+      </linearGradient>
+      <linearGradient id="cg2" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="currentColor" stop-opacity="0.35"/>
+        <stop offset="1" stop-color="currentColor" stop-opacity="0.08"/>
+      </linearGradient>
+      <!-- Back row -->
+      <path d="M20,12 a5,5 0 1,1 10,0 a5,5 0 1,1 -10,0 M17,60 L17,26 Q17,19 25,19 Q33,19 33,26 L33,60Z" fill="url(#cg2)"/>
+      <path d="M58,10 a5.5,5.5 0 1,1 11,0 a5.5,5.5 0 1,1 -11,0 M55,60 L55,24 Q55,17 63.5,17 Q72,17 72,24 L72,60Z" fill="url(#cg2)"/>
+      <path d="M100,13 a5,5 0 1,1 10,0 a5,5 0 1,1 -10,0 M97,60 L97,27 Q97,20 105,20 Q113,20 113,27 L113,60Z" fill="url(#cg2)"/>
+      <path d="M142,10 a5.5,5.5 0 1,1 11,0 a5.5,5.5 0 1,1 -11,0 M139,60 L139,24 Q139,17 147.5,17 Q156,17 156,24 L156,60Z" fill="url(#cg2)"/>
+      <path d="M184,12 a5,5 0 1,1 10,0 a5,5 0 1,1 -10,0 M181,60 L181,26 Q181,19 189,19 Q197,19 197,26 L197,60Z" fill="url(#cg2)"/>
+      <path d="M226,10 a5.5,5.5 0 1,1 11,0 a5.5,5.5 0 1,1 -11,0 M223,60 L223,24 Q223,17 231.5,17 Q240,17 240,24 L240,60Z" fill="url(#cg2)"/>
+      <path d="M268,13 a5,5 0 1,1 10,0 a5,5 0 1,1 -10,0 M265,60 L265,27 Q265,20 273,20 Q281,20 281,27 L281,60Z" fill="url(#cg2)"/>
+      <path d="M310,10 a5.5,5.5 0 1,1 11,0 a5.5,5.5 0 1,1 -11,0 M307,60 L307,24 Q307,17 315.5,17 Q324,17 324,24 L324,60Z" fill="url(#cg2)"/>
+      <path d="M352,12 a5,5 0 1,1 10,0 a5,5 0 1,1 -10,0 M349,60 L349,26 Q349,19 357,19 Q365,19 365,26 L365,60Z" fill="url(#cg2)"/>
+      <path d="M394,10 a5.5,5.5 0 1,1 11,0 a5.5,5.5 0 1,1 -11,0 M391,60 L391,24 Q391,17 399.5,17 Q408,17 408,24 L408,60Z" fill="url(#cg2)"/>
+      <path d="M436,12 a5,5 0 1,1 10,0 a5,5 0 1,1 -10,0 M433,60 L433,26 Q433,19 441,19 Q449,19 449,26 L449,60Z" fill="url(#cg2)"/>
+      <!-- Front row -->
+      <path d="M4,22 a7,7 0 1,1 14,0 a7,7 0 1,1 -14,0 M0,60 L0,38 Q0,29 11,29 Q22,29 22,38 L22,60Z" fill="url(#cg)"/>
+      <path d="M28,19 a8,8 0 1,1 16,0 a8,8 0 1,1 -16,0 M23,60 L23,35 Q23,27 36,27 Q49,27 49,35 L49,60Z" fill="url(#cg)"/>
+      <path d="M54,23 a6.5,6.5 0 1,1 13,0 a6.5,6.5 0 1,1 -13,0 M50,60 L50,39 Q50,31 60.5,31 Q71,31 71,39 L71,60Z" fill="url(#cg)"/>
+      <path d="M76,18 a8,8 0 1,1 16,0 a8,8 0 1,1 -16,0 M71,60 L71,34 Q71,26 84,26 Q97,26 97,34 L97,60Z" fill="url(#cg)"/>
+      <path d="M102,22 a7,7 0 1,1 14,0 a7,7 0 1,1 -14,0 M97,60 L97,38 Q97,29 109,29 Q121,29 121,38 L121,60Z" fill="url(#cg)"/>
+      <path d="M126,19 a8,8 0 1,1 16,0 a8,8 0 1,1 -16,0 M121,60 L121,35 Q121,27 134,27 Q147,27 147,35 L147,60Z" fill="url(#cg)"/>
+      <path d="M152,23 a6.5,6.5 0 1,1 13,0 a6.5,6.5 0 1,1 -13,0 M148,60 L148,39 Q148,31 158.5,31 Q169,31 169,39 L169,60Z" fill="url(#cg)"/>
+      <path d="M174,18 a8,8 0 1,1 16,0 a8,8 0 1,1 -16,0 M169,60 L169,34 Q169,26 182,26 Q195,26 195,34 L195,60Z" fill="url(#cg)"/>
+      <path d="M200,22 a7,7 0 1,1 14,0 a7,7 0 1,1 -14,0 M195,60 L195,38 Q195,29 207,29 Q219,29 219,38 L219,60Z" fill="url(#cg)"/>
+      <path d="M224,18 a8,8 0 1,1 16,0 a8,8 0 1,1 -16,0 M219,60 L219,34 Q219,26 232,26 Q245,26 245,34 L245,60Z" fill="url(#cg)"/>
+      <path d="M250,23 a6.5,6.5 0 1,1 13,0 a6.5,6.5 0 1,1 -13,0 M246,60 L246,39 Q246,31 256.5,31 Q267,31 267,39 L267,60Z" fill="url(#cg)"/>
+      <path d="M272,18 a8,8 0 1,1 16,0 a8,8 0 1,1 -16,0 M267,60 L267,34 Q267,26 280,26 Q293,26 293,34 L293,60Z" fill="url(#cg)"/>
+      <path d="M298,22 a7,7 0 1,1 14,0 a7,7 0 1,1 -14,0 M293,60 L293,38 Q293,29 305,29 Q317,29 317,38 L317,60Z" fill="url(#cg)"/>
+      <path d="M322,19 a8,8 0 1,1 16,0 a8,8 0 1,1 -16,0 M317,60 L317,35 Q317,27 330,27 Q343,27 343,35 L343,60Z" fill="url(#cg)"/>
+      <path d="M348,23 a6.5,6.5 0 1,1 13,0 a6.5,6.5 0 1,1 -13,0 M344,60 L344,39 Q344,31 354.5,31 Q365,31 365,39 L365,60Z" fill="url(#cg)"/>
+      <path d="M370,18 a8,8 0 1,1 16,0 a8,8 0 1,1 -16,0 M365,60 L365,34 Q365,26 378,26 Q391,26 391,34 L391,60Z" fill="url(#cg)"/>
+      <path d="M396,22 a7,7 0 1,1 14,0 a7,7 0 1,1 -14,0 M391,60 L391,38 Q391,29 403,29 Q415,29 415,38 L415,60Z" fill="url(#cg)"/>
+      <path d="M420,19 a8,8 0 1,1 16,0 a8,8 0 1,1 -16,0 M415,60 L415,35 Q415,27 428,27 Q441,27 441,35 L441,60Z" fill="url(#cg)"/>
+      <path d="M446,22 a7,7 0 1,1 14,0 a7,7 0 1,1 -14,0 M441,60 L441,38 Q441,29 453,29 Q465,29 465,38 L465,60Z" fill="url(#cg)"/>
+      <path d="M468,19 a7,7 0 1,1 14,0 a7,7 0 1,1 -14,0 M464,60 L464,35 Q464,27 475,27 Q486,27 486,35 L486,60Z" fill="url(#cg)"/>
+    </symbol>
+  </defs>
+</svg>
+
+<!-- Reusable page top (header + progress + player) -->
+<!-- I'll inline it per concept to keep things simple -->
+
+<!-- ==================== M + 2x2 Grid ==================== -->
+<div class="concept active" id="concept-m1">
+  <div class="concept-label">
+    <h2>M + 2x2 Grid Cards</h2>
+    <p>Dark crowd score card + big bold numbers in a grid. Each card has a color accent bar at the bottom.</p>
+  </div>
+  <div class="phone-frame" id="frame-m1"></div>
+</div>
+
+<!-- ==================== M + Gauges ==================== -->
+<div class="concept" id="concept-m2">
+  <div class="concept-label">
+    <h2>M + Semi-circle Gauges</h2>
+    <p>Dark crowd score card + mini arc gauges for each dimension. Score reads like a meter.</p>
+  </div>
+  <div class="phone-frame" id="frame-m2"></div>
+</div>
+
+<!-- ==================== M + Thick Bars ==================== -->
+<div class="concept" id="concept-m3">
+  <div class="concept-label">
+    <h2>M + Thick Rounded Bars</h2>
+    <p>Dark crowd score card + fat rounded bars with the percentage number embedded inside.</p>
+  </div>
+  <div class="phone-frame" id="frame-m3"></div>
+</div>
+
+<!-- ==================== N + Rings ==================== -->
+<div class="concept" id="concept-n1">
+  <div class="concept-label">
+    <h2>N + Donut Rings</h2>
+    <p>Spotlight score card + four donut ring charts in a row. Compact and visual.</p>
+  </div>
+  <div class="phone-frame" id="frame-n1"></div>
+</div>
+
+<!-- ==================== N + Grid ==================== -->
+<div class="concept" id="concept-n2">
+  <div class="concept-label">
+    <h2>N + 2x2 Grid Cards</h2>
+    <p>Spotlight score card + grid cards with big numbers.</p>
+  </div>
+  <div class="phone-frame" id="frame-n2"></div>
+</div>
+
+<!-- ==================== N + Columns ==================== -->
+<div class="concept" id="concept-n3">
+  <div class="concept-label">
+    <h2>N + Vertical Columns</h2>
+    <p>Spotlight score card + vertical bar columns like an equalizer. Tallest bar = highest score.</p>
+  </div>
+  <div class="phone-frame" id="frame-n3"></div>
+</div>
+
+<script>
+function show(id) {
+  document.querySelectorAll('.concept').forEach(c => c.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('concept-' + id).classList.add('active');
+  event.target.classList.add('active');
+}
+function toggleState() {
+  const isCollecting = document.body.classList.toggle('collecting');
+  document.getElementById('state-toggle').classList.toggle('on', isCollecting);
+  document.getElementById('label-complete').classList.toggle('active-label', !isCollecting);
+  document.getElementById('label-collecting').classList.toggle('active-label', isCollecting);
+}
+
+// Build page sections as HTML strings
+function headerHTML() {
+  return `
+  <div style="padding:24px 24px 0;">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px;">
+      <div>
+        <h1 style="font-size:22px;font-weight:800;">Late Night Drive</h1>
+        <span class="when-complete"><span style="display:inline-block;margin-top:4px;padding:2px 10px;border-radius:999px;font-size:11px;font-weight:600;background:var(--primary);color:white;">Complete</span></span>
+        <span class="when-collecting"><span style="display:inline-flex;align-items:center;gap:6px;margin-top:4px;padding:2px 10px;border-radius:999px;font-size:11px;font-weight:600;background:oklch(0.95 0.03 145);color:oklch(0.4 0.15 145);"><span class="pulse-dot"></span> Collecting</span></span>
+      </div>
+      <span style="font-size:13px;color:var(--muted);cursor:pointer;">Delete</span>
+    </div>
+    <div class="when-collecting" style="margin-bottom:24px;">
+      <div class="progress-bar"><div class="progress-fill" style="width:40%;"></div></div>
+      <div class="progress-text">8 of 20 votes collected</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;padding:14px 16px;background:var(--muted-bg);border-radius:14px;">
+      <div class="play-btn"></div>
+      <div class="waveform" data-wf></div>
+      <div class="time-label">0:00 / 0:30</div>
+    </div>
+  </div>`;
+}
+
+function mScoreHTML() {
+  return `
+  <div class="when-complete">
+    <div class="m-score-card">
+      <div class="m-score-inner"><div class="m-score-label">Overall Virality Score</div><div class="m-score-num">78%</div><div class="m-percentile">Top 15% of all tracks tested</div></div>
+      <div class="m-crowd-horizon" style="color:white;"><svg class="crowd-svg" style="height:100%;" preserveAspectRatio="xMidYMax slice"><use href="#crowd"/></svg></div>
+    </div>
+  </div>
+  <div class="when-collecting">
+    <div class="m-score-card" style="background:linear-gradient(160deg,oklch(0.25 0.1 293),oklch(0.35 0.15 310));border:2px dashed oklch(0.5 0.15 293);">
+      <div class="m-score-inner"><div class="m-prelim-note"><span class="pulse-dot"></span> Preliminary Score</div><div class="m-score-num" style="opacity:0.5;font-size:48px;">~62%</div><div class="m-percentile" style="font-style:italic;">Based on 8 votes — may shift</div></div>
+      <div class="m-crowd-horizon" style="color:white;opacity:0.2;"><svg class="crowd-svg" style="height:100%;" preserveAspectRatio="xMidYMax slice"><use href="#crowd"/></svg></div>
+    </div>
+  </div>`;
+}
+
+function nScoreHTML() {
+  return `
+  <div style="padding:0 24px;">
+    <div class="when-complete">
+      <div class="n-score-section" style="margin-bottom:24px;">
+        <div class="n-spotlight"></div>
+        <div class="n-score-inner"><div class="n-score-label">Overall Virality Score</div><div class="n-score-num">78%</div><div class="n-percentile">Top 15% of all tracks tested</div></div>
+        <div class="n-crowd-strip" style="color:var(--primary);"><svg class="crowd-svg" style="height:100%;" preserveAspectRatio="xMidYMax slice"><use href="#crowd"/></svg></div>
+      </div>
+    </div>
+    <div class="when-collecting">
+      <div class="n-score-section" style="margin-bottom:24px;border-style:dashed;border-width:2px;border-color:oklch(0.85 0.08 293);">
+        <div class="n-spotlight" style="opacity:0.5;"></div>
+        <div class="n-score-inner"><div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:2px;"><span class="pulse-dot"></span><span class="n-score-label">Preliminary Score</span></div><div class="n-score-num" style="opacity:0.6;">~62%</div><div class="n-percentile" style="font-style:italic;">Based on 8 votes — may shift</div></div>
+        <div class="n-crowd-strip" style="color:var(--primary);opacity:0.06;"><svg class="crowd-svg" style="height:100%;" preserveAspectRatio="xMidYMax slice"><use href="#crowd"/></svg></div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function insightsHTML() {
+  return `
+  <div class="when-complete">
+    <div class="section">
+      <div class="section-title">Insights</div>
+      <div class="insight-card success"><div class="insight-title">Strong hook — Movement score is exceptional</div><div class="insight-desc">Your track's rhythmic elements tested in the top tier.</div></div>
+      <div class="insight-card warning"><div class="insight-title">Room to grow — Trend alignment</div><div class="insight-desc">Adjusting production to match current sounds could push this further.</div></div>
+    </div>
+  </div>`;
+}
+
+function shareHTML() {
+  return `<div class="section"><div class="share-box"><div class="share-title">Share Results</div><div class="share-btns"><div class="share-btn">Post</div><div class="share-btn">Message</div><div class="share-btn">Email</div><div class="share-btn">Copy</div></div></div></div><div class="spacer"></div>`;
+}
+
+// Dimension layouts
+function gridDimsHTML() {
+  return `
+  <div class="section">
+    <div class="section-title">Dimension Breakdown</div>
+    <div class="dims-grid">
+      <div class="dim-grid-card high"><div class="dim-grid-emoji">🎣</div><div class="dim-grid-name">Hook Factor</div><div class="dim-grid-val">85%</div></div>
+      <div class="dim-grid-card med"><div class="dim-grid-emoji">🧠</div><div class="dim-grid-name">Memorability</div><div class="dim-grid-val">72%</div></div>
+      <div class="dim-grid-card high"><div class="dim-grid-emoji">💃</div><div class="dim-grid-name">Movement</div><div class="dim-grid-val">90%</div></div>
+      <div class="dim-grid-card low"><div class="dim-grid-emoji">✨</div><div class="dim-grid-name">Trend Fit</div><div class="dim-grid-val">58%</div></div>
+    </div>
+  </div>`;
+}
+
+function gaugeDimsHTML() {
+  const r = 36, cx = 45, cy = 44;
+  const circ = Math.PI * r; // half circle
+  function arc(pct) { return circ - (circ * pct / 100); }
+  function gaugeColor(pct) { return pct >= 70 ? 'var(--primary)' : pct >= 50 ? 'oklch(0.606 0.25 292.717)' : 'oklch(0.491 0.27 292.581)'; }
+  function g(emoji, name, pct) {
+    return `<div class="dim-gauge">
+      <svg class="dim-gauge-svg" viewBox="0 0 90 50">
+        <path d="M 9 44 A 36 36 0 0 1 81 44" fill="none" stroke="var(--muted-bg)" stroke-width="7" stroke-linecap="round"/>
+        <path d="M 9 44 A 36 36 0 0 1 81 44" fill="none" stroke="${gaugeColor(pct)}" stroke-width="7" stroke-linecap="round" stroke-dasharray="${circ}" stroke-dashoffset="${arc(pct)}"/>
+      </svg>
+      <div class="dim-gauge-val" style="color:${gaugeColor(pct)};margin-top:-6px;">${pct}%</div>
+      <div style="margin-top:4px;">${emoji} <span class="dim-gauge-name">${name}</span></div>
+    </div>`;
+  }
+  return `<div class="section"><div class="section-title">Dimension Breakdown</div><div class="dims-gauges">
+    ${g('🎣','Hook',85)}${g('🧠','Memory',72)}${g('💃','Move',90)}${g('✨','Trend',58)}
+  </div></div>`;
+}
+
+function thickBarDimsHTML() {
+  function bar(emoji, name, pct) {
+    const col = pct >= 70 ? 'var(--primary)' : pct >= 50 ? 'oklch(0.606 0.25 292.717)' : 'oklch(0.491 0.27 292.581)';
+    return `<div class="dim-thick-row">
+      <div class="dim-thick-label">${emoji} ${name}</div>
+      <div class="dim-thick-bar"><div class="dim-thick-fill" style="width:${pct}%;background:${col};"><span class="dim-thick-val">${pct}%</span></div></div>
+    </div>`;
+  }
+  return `<div class="section"><div class="section-title">Dimension Breakdown</div>
+    ${bar('🎣','Hook Factor',85)}${bar('🧠','Memorability',72)}${bar('💃','Movement',90)}${bar('✨','Trend Fit',58)}
+  </div>`;
+}
+
+function ringDimsHTML() {
+  const r = 25, circ = 2 * Math.PI * r;
+  function ring(emoji, name, pct) {
+    const col = pct >= 70 ? 'var(--primary)' : pct >= 50 ? 'oklch(0.606 0.25 292.717)' : 'oklch(0.491 0.27 292.581)';
+    const offset = circ - (circ * pct / 100);
+    return `<div class="dim-ring">
+      <div style="position:relative;">
+        <svg class="dim-ring-svg" viewBox="0 0 64 64">
+          <circle class="ring-bg" cx="32" cy="32" r="${r}"/>
+          <circle class="ring-fg" cx="32" cy="32" r="${r}" stroke="${col}" stroke-dasharray="${circ}" stroke-dashoffset="${offset}"/>
+        </svg>
+        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;" class="dim-ring-center" style="color:${col};">${pct}%</div>
+      </div>
+      <div class="dim-ring-emoji">${emoji}</div>
+      <div class="dim-ring-name">${name}</div>
+    </div>`;
+  }
+  return `<div class="section"><div class="section-title">Dimension Breakdown</div><div class="dims-rings">
+    ${ring('🎣','Hook',85)}${ring('🧠','Memory',72)}${ring('💃','Move',90)}${ring('✨','Trend',58)}
+  </div></div>`;
+}
+
+function colDimsHTML() {
+  function col(emoji, name, pct) {
+    const col = pct >= 70 ? 'var(--primary)' : pct >= 50 ? 'oklch(0.606 0.25 292.717)' : 'oklch(0.491 0.27 292.581)';
+    return `<div class="dim-col">
+      <div class="dim-col-val" style="color:${col};">${pct}%</div>
+      <div class="dim-col-bar-wrap"><div class="dim-col-fill" style="height:${pct}%;background:${col};"></div></div>
+      <div class="dim-col-emoji">${emoji}</div>
+      <div class="dim-col-name">${name}</div>
+    </div>`;
+  }
+  return `<div class="section"><div class="section-title">Dimension Breakdown</div><div class="dims-cols">
+    ${col('🎣','Hook',85)}${col('🧠','Memory',72)}${col('💃','Move',90)}${col('✨','Trend',58)}
+  </div></div>`;
+}
+
+// Assemble pages
+function buildPage(frameId, scoreHTML, dimsHTML) {
+  document.getElementById(frameId).innerHTML = headerHTML() + scoreHTML + dimsHTML + insightsHTML() + shareHTML();
+}
+
+buildPage('frame-m1', mScoreHTML(), gridDimsHTML());
+buildPage('frame-m2', mScoreHTML(), gaugeDimsHTML());
+buildPage('frame-m3', mScoreHTML(), thickBarDimsHTML());
+buildPage('frame-n1', nScoreHTML(), ringDimsHTML());
+buildPage('frame-n2', nScoreHTML(), gridDimsHTML());
+buildPage('frame-n3', nScoreHTML(), colDimsHTML());
+
+// Generate waveforms
+document.querySelectorAll('[data-wf]').forEach(c => {
+  for (let i = 0; i < 40; i++) {
+    const bar = document.createElement('div');
+    bar.className = 'bar' + (i / 40 < 0.4 ? ' filled' : '');
+    bar.style.height = (20 + Math.random() * 80) + '%';
+    c.appendChild(bar);
+  }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Soundcheck — Sweeping Lights + Gentle Wave</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --primary: oklch(0.541 0.281 293.009);
+    --primary-light: oklch(0.75 0.15 293);
+    --primary-faint: oklch(0.95 0.03 293);
+    --bg: #fff;
+    --fg: #111;
+    --muted: #888;
+    --muted-bg: #f5f5f5;
+    --border: #e5e5e5;
+    --green: #22c55e;
+    --yellow: #eab308;
+  }
+  body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f0f0; color: var(--fg); line-height: 1.5; }
+
+  .state-toggle { position: sticky; top: 0; z-index: 100; background: rgba(255,255,255,0.92); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; align-items: center; gap: 12px; }
+  .state-toggle h1 { font-size: 15px; font-weight: 700; white-space: nowrap; }
+  .state-toggle label { font-size: 12px; font-weight: 600; color: var(--muted); cursor: pointer; }
+  .state-toggle label.active-label { color: var(--fg); }
+  .toggle-track { width: 36px; height: 20px; background: var(--muted-bg); border: 1.5px solid var(--border); border-radius: 10px; position: relative; cursor: pointer; transition: background 0.2s; }
+  .toggle-track.on { background: var(--primary); border-color: var(--primary); }
+  .toggle-knob { width: 14px; height: 14px; background: white; border-radius: 50%; position: absolute; top: 2px; left: 2px; transition: left 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+  .toggle-track.on .toggle-knob { left: 18px; }
+
+  .when-complete { display: block; }
+  .when-collecting { display: none; }
+  body.collecting .when-complete { display: none; }
+  body.collecting .when-collecting { display: block; }
+
+  .pulse-dot { position: relative; display: inline-flex; width: 8px; height: 8px; }
+  .pulse-dot::before { content: ''; position: absolute; inset: 0; border-radius: 50%; background: var(--green); animation: pulse-ring 1.5s ease infinite; }
+  .pulse-dot::after { content: ''; position: relative; width: 8px; height: 8px; border-radius: 50%; background: var(--green); }
+  @keyframes pulse-ring { 0% { transform: scale(1); opacity: 0.7; } 100% { transform: scale(2.2); opacity: 0; } }
+
+  .phone-frame { max-width: 480px; margin: 32px auto; background: var(--bg); border-radius: 24px; box-shadow: 0 8px 40px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.06); overflow: hidden; }
+
+  .play-btn { width: 40px; height: 40px; border-radius: 50%; background: var(--primary); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .play-btn::after { content: ''; width: 0; height: 0; border-left: 10px solid white; border-top: 6px solid transparent; border-bottom: 6px solid transparent; margin-left: 2px; }
+  .waveform { flex: 1; height: 32px; display: flex; align-items: end; gap: 2px; }
+  .waveform .bar { flex: 1; border-radius: 2px 2px 0 0; background: var(--primary); opacity: 0.3; }
+  .waveform .bar.filled { opacity: 1; }
+  .time-label { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+
+  .section { padding: 0 24px; margin-bottom: 24px; }
+  .section-title { font-size: 14px; font-weight: 700; margin-bottom: 12px; }
+  .spacer { height: 32px; }
+
+  .progress-bar { height: 6px; background: var(--muted-bg); border-radius: 3px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 3px; background: var(--primary); }
+  .progress-text { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+  .insight-card { padding: 14px; border-radius: 12px; margin-bottom: 10px; border-left: 4px solid; }
+  .insight-card.success { border-color: var(--green); background: oklch(0.97 0.03 145); }
+  .insight-card.warning { border-color: var(--yellow); background: oklch(0.97 0.04 85); }
+  .insight-title { font-size: 13px; font-weight: 700; }
+  .insight-desc { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  .share-box { padding: 16px; border-radius: 14px; border: 1px solid var(--border); }
+  .share-title { font-size: 12px; font-weight: 700; color: var(--muted); margin-bottom: 10px; }
+  .share-btns { display: flex; gap: 8px; }
+  .share-btn { flex: 1; padding: 8px; border-radius: 8px; background: var(--muted-bg); border: 1px solid var(--border); font-size: 12px; font-weight: 600; text-align: center; cursor: pointer; }
+
+  /* M score card */
+  .m-score-card { margin: 0 24px 24px; border-radius: 20px; overflow: hidden; background: linear-gradient(160deg, oklch(0.3 0.15 293), oklch(0.45 0.22 310)); color: white; position: relative; }
+  .m-score-inner { padding: 28px 24px 12px; text-align: center; position: relative; z-index: 2; }
+  .m-score-label { font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 1px; }
+  .m-score-num { font-size: 56px; font-weight: 900; line-height: 1; margin-top: 4px; text-shadow: 0 2px 20px rgba(255,255,255,0.2); }
+  .m-percentile { font-size: 13px; color: rgba(255,255,255,0.5); margin-top: 8px; }
+  .m-crowd-area { height: 55px; position: relative; z-index: 1; margin-top: -8px; overflow: hidden; }
+  .m-prelim { display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 6px; font-size: 11px; color: rgba(255,255,255,0.4); }
+
+  /* Stage lights */
+  .stage-lights { position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 1; pointer-events: none; overflow: hidden; }
+
+  /* Sweeping lights */
+  .lights-sweep .beam {
+    position: absolute;
+    top: -10px;
+    width: 60px;
+    height: 200px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.15) 0%, transparent 65%);
+    clip-path: polygon(38% 0%, 62% 0%, 100% 100%, 0% 100%);
+    animation: sweep 6s ease-in-out infinite;
+    transform-origin: top center;
+  }
+  @keyframes sweep {
+    0%, 100% { transform: rotate(-5deg); opacity: 0.8; }
+    50% { transform: rotate(5deg); opacity: 1; }
+  }
+  .lights-sweep .beam:nth-child(2) { animation-delay: -2s; animation-duration: 5s; }
+  .lights-sweep .beam:nth-child(3) { animation-delay: -4s; animation-duration: 7s; }
+  .lights-sweep .beam:nth-child(4) { animation-delay: -1s; animation-duration: 5.5s; }
+  .lights-sweep .dot {
+    position: absolute;
+    top: -2px;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: white;
+    box-shadow: 0 0 8px 3px rgba(255,255,255,0.5);
+  }
+
+  /* Pill bars (number outside) */
+  .tb2-row { margin-bottom: 10px; display: flex; align-items: center; gap: 10px; }
+  .tb2-info { width: 100px; flex-shrink: 0; }
+  .tb2-label { font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 5px; }
+  .tb2-bar { flex: 1; height: 28px; background: var(--muted-bg); border-radius: 14px; overflow: hidden; }
+  .tb2-fill { height: 100%; border-radius: 14px; }
+  .tb2-val { font-size: 15px; font-weight: 800; width: 40px; text-align: right; flex-shrink: 0; }
+
+  /* Gentle wave sway — each person sways individually, staggered */
+  .crowd-wave-wrap .cw-person {
+    animation: sway-wave 5s ease-in-out infinite;
+    transform-origin: bottom center;
+  }
+  @keyframes sway-wave {
+    0%, 100% { transform: translateX(0) rotate(0deg); }
+    30% { transform: translateX(-1px) rotate(-0.6deg); }
+    70% { transform: translateX(1px) rotate(0.6deg); }
+  }
+</style>
+</head>
+<body>
+
+<nav class="state-toggle">
+  <h1>Sweeping Lights + Gentle Wave</h1>
+  <div style="flex:1;"></div>
+  <label id="label-complete" class="active-label">Complete</label>
+  <div class="toggle-track" id="state-toggle" onclick="toggleState()"><div class="toggle-knob"></div></div>
+  <label id="label-collecting">Collecting</label>
+</nav>
+
+<div class="phone-frame" id="frame"></div>
+
+<div style="height:60px;"></div>
+
+<script>
+function toggleState() {
+  const isCollecting = document.body.classList.toggle('collecting');
+  document.getElementById('state-toggle').classList.toggle('on', isCollecting);
+  document.getElementById('label-complete').classList.toggle('active-label', !isCollecting);
+  document.getElementById('label-collecting').classList.toggle('active-label', isCollecting);
+}
+
+/* Person silhouettes — bodies extended well past viewBox bottom (70 instead of 56) so no gap */
+const people = [
+  { x: 4, hr: 7, hy: 20, bx1: 0, bx2: 22, by: 36, btop: 28 },
+  { x: 26, hr: 8, hy: 16, bx1: 21, bx2: 47, by: 32, btop: 24 },
+  { x: 52, hr: 6.5, hy: 21, bx1: 48, bx2: 69, by: 37, btop: 29 },
+  { x: 74, hr: 8.5, hy: 15, bx1: 69, bx2: 96, by: 31, btop: 23 },
+  { x: 100, hr: 7, hy: 19, bx1: 96, bx2: 118, by: 35, btop: 27 },
+  { x: 124, hr: 8, hy: 16, bx1: 119, bx2: 145, by: 32, btop: 24 },
+  { x: 150, hr: 6.5, hy: 21, bx1: 146, bx2: 167, by: 37, btop: 29 },
+  { x: 172, hr: 8.5, hy: 15, bx1: 167, bx2: 194, by: 31, btop: 23 },
+  { x: 198, hr: 7, hy: 19, bx1: 194, bx2: 216, by: 35, btop: 27 },
+  { x: 222, hr: 8.5, hy: 15, bx1: 217, bx2: 244, by: 31, btop: 23 },
+  { x: 248, hr: 7, hy: 20, bx1: 244, bx2: 266, by: 36, btop: 28 },
+  { x: 272, hr: 8, hy: 16, bx1: 267, bx2: 293, by: 32, btop: 24 },
+  { x: 298, hr: 6.5, hy: 21, bx1: 294, bx2: 315, by: 37, btop: 29 },
+  { x: 320, hr: 8.5, hy: 15, bx1: 315, bx2: 342, by: 31, btop: 23 },
+  { x: 346, hr: 7, hy: 19, bx1: 342, bx2: 364, by: 35, btop: 27 },
+  { x: 370, hr: 8, hy: 16, bx1: 365, bx2: 391, by: 32, btop: 24 },
+  { x: 396, hr: 7, hy: 20, bx1: 392, bx2: 414, by: 36, btop: 28 },
+  { x: 420, hr: 8, hy: 16, bx1: 415, bx2: 441, by: 32, btop: 24 },
+  { x: 446, hr: 7, hy: 19, bx1: 442, bx2: 464, by: 35, btop: 27 },
+  { x: 468, hr: 7, hy: 16, bx1: 464, bx2: 486, by: 32, btop: 25 },
+];
+
+/* Body bottom at 70 (well past 56 viewBox) so bodies bleed to the edge */
+function personPath(p) {
+  const midx = (p.bx1 + p.bx2) / 2;
+  return `M${p.x},${p.hy} a${p.hr},${p.hr} 0 1,1 ${p.hr*2},0 a${p.hr},${p.hr} 0 1,1 -${p.hr*2},0 M${p.bx1},70 L${p.bx1},${p.by} Q${p.bx1},${p.btop} ${midx},${p.btop} Q${p.bx2},${p.btop} ${p.bx2},${p.by} L${p.bx2},70Z`;
+}
+
+function crowdWaveHTML(opacity) {
+  let svg = `<svg viewBox="0 0 490 56" preserveAspectRatio="xMidYMax slice" style="display:block;width:100%;height:55px;">`;
+  people.forEach((p, i) => {
+    const delay = (i * 0.15) % 3;
+    svg += `<g class="cw-person" style="animation-delay:${delay.toFixed(2)}s"><path d="${personPath(p)}" fill="white"/></g>`;
+  });
+  svg += `</svg>`;
+  return `<div class="m-crowd-area"><div class="crowd-wave-wrap" style="height:55px;opacity:${opacity};overflow:hidden;">${svg}</div></div>`;
+}
+
+function lightsSweepHTML() {
+  return `<div class="stage-lights lights-sweep">
+    <div class="beam" style="left:8%;"></div>
+    <div class="dot" style="left:calc(8% + 28px);"></div>
+    <div class="beam" style="left:32%;"></div>
+    <div class="dot" style="left:calc(32% + 28px);"></div>
+    <div class="beam" style="left:56%;"></div>
+    <div class="dot" style="left:calc(56% + 28px);"></div>
+    <div class="beam" style="left:80%;"></div>
+    <div class="dot" style="left:calc(80% + 28px);"></div>
+  </div>`;
+}
+
+function col(pct) { return pct >= 70 ? 'var(--primary)' : pct >= 50 ? 'oklch(0.606 0.25 292.717)' : 'oklch(0.491 0.27 292.581)'; }
+function txtCol(pct) { return pct >= 70 ? 'var(--primary)' : pct >= 50 ? 'oklch(0.606 0.25 292.717)' : 'oklch(0.491 0.27 292.581)'; }
+
+document.getElementById('frame').innerHTML = `
+  <div style="padding:24px 24px 0;">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px;">
+      <div>
+        <h1 style="font-size:22px;font-weight:800;">Late Night Drive</h1>
+        <span class="when-complete"><span style="display:inline-block;margin-top:4px;padding:2px 10px;border-radius:999px;font-size:11px;font-weight:600;background:var(--primary);color:white;">Complete</span></span>
+        <span class="when-collecting"><span style="display:inline-flex;align-items:center;gap:6px;margin-top:4px;padding:2px 10px;border-radius:999px;font-size:11px;font-weight:600;background:oklch(0.95 0.03 145);color:oklch(0.4 0.15 145);"><span class="pulse-dot"></span> Collecting</span></span>
+      </div>
+      <span style="font-size:13px;color:var(--muted);cursor:pointer;">Delete</span>
+    </div>
+    <div class="when-collecting" style="margin-bottom:24px;">
+      <div class="progress-bar"><div class="progress-fill" style="width:40%;"></div></div>
+      <div class="progress-text">8 of 20 votes collected</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;padding:14px 16px;background:var(--muted-bg);border-radius:14px;">
+      <div class="play-btn"></div>
+      <div class="waveform" data-wf></div>
+      <div class="time-label">0:00 / 0:30</div>
+    </div>
+  </div>
+
+  <!-- COMPLETE state -->
+  <div class="when-complete">
+    <div class="m-score-card">
+      ${lightsSweepHTML()}
+      <div class="m-score-inner">
+        <div class="m-score-label">Overall Virality Score</div>
+        <div class="m-score-num">78%</div>
+        <div class="m-percentile">Top 15% of all tracks tested</div>
+      </div>
+      ${crowdWaveHTML(0.35)}
+    </div>
+  </div>
+
+  <!-- COLLECTING state -->
+  <div class="when-collecting">
+    <div class="m-score-card" style="background:linear-gradient(160deg,oklch(0.25 0.1 293),oklch(0.35 0.15 310));border:2px dashed oklch(0.5 0.15 293);">
+      ${lightsSweepHTML()}
+      <div class="m-score-inner">
+        <div class="m-prelim"><span class="pulse-dot"></span> Preliminary Score</div>
+        <div class="m-score-num" style="opacity:0.5;font-size:48px;">~62%</div>
+        <div class="m-percentile" style="font-style:italic;">Based on 8 votes — may shift</div>
+      </div>
+      ${crowdWaveHTML(0.2)}
+    </div>
+  </div>
+
+  <!-- Dimension Breakdown -->
+  <div class="section">
+    <div class="section-title">Dimension Breakdown</div>
+    ${[['🎣','Hook',85],['🧠','Memory',72],['💃','Movement',90],['✨','Trend',58]].map(([e,n,p]) =>
+      `<div class="tb2-row"><div class="tb2-info"><div class="tb2-label">${e} ${n}</div></div><div class="tb2-bar"><div class="tb2-fill" style="width:${p}%;background:${col(p)};"></div></div><div class="tb2-val" style="color:${txtCol(p)};">${p}%</div></div>`
+    ).join('')}
+  </div>
+
+  <!-- Insights -->
+  <div class="when-complete"><div class="section">
+    <div class="section-title">Insights</div>
+    <div class="insight-card success"><div class="insight-title">Strong hook — Movement score is exceptional</div><div class="insight-desc">Your track's rhythmic elements tested in the top tier.</div></div>
+    <div class="insight-card warning"><div class="insight-title">Room to grow — Trend alignment</div><div class="insight-desc">Adjusting production to match current sounds could push this further.</div></div>
+  </div></div>
+
+  <!-- Share -->
+  <div class="section"><div class="share-box"><div class="share-title">Share Results</div><div class="share-btns"><div class="share-btn">Post</div><div class="share-btn">Message</div><div class="share-btn">Email</div><div class="share-btn">Copy</div></div></div></div>
+  <div class="spacer"></div>
+`;
+
+// Waveform bars
+document.querySelectorAll('[data-wf]').forEach(c => {
+  for (let i = 0; i < 40; i++) {
+    const bar = document.createElement('div');
+    bar.className = 'bar' + (i / 40 < 0.4 ? ' filled' : '');
+    bar.style.height = (20 + Math.random() * 80) + '%';
+    c.appendChild(bar);
+  }
+});
+</script>
+</body>
+</html>

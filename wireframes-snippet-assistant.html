@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Soundcheck — Snippet Assistant Wireframe</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --primary: oklch(0.541 0.281 293.009);
+    --primary-light: oklch(0.75 0.15 293);
+    --primary-faint: oklch(0.92 0.04 293);
+    --primary-glow: oklch(0.65 0.22 293 / 0.15);
+    --bg: #f5f5f5;
+    --card: #ffffff;
+    --fg: #111;
+    --muted: #888;
+    --muted-light: #aaa;
+    --border: #e5e5e5;
+    --border-focus: oklch(0.7 0.12 293);
+    --destructive: #ef4444;
+    --radius-card: 12px;
+    --radius-pill: 999px;
+    --radius-sm: 8px;
+  }
+
+  body {
+    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+
+  /* Layout */
+  .page {
+    display: flex;
+    gap: 40px;
+    justify-content: center;
+    padding: 40px 24px 80px;
+    flex-wrap: wrap;
+  }
+
+  .variant {
+    width: 100%;
+    max-width: 420px;
+    flex-shrink: 0;
+  }
+
+  .variant-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 16px;
+    padding-left: 4px;
+  }
+
+  .phone-frame {
+    background: var(--card);
+    border-radius: 24px;
+    box-shadow:
+      0 1px 3px rgba(0,0,0,0.04),
+      0 8px 32px rgba(0,0,0,0.06);
+    padding: 24px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Page heading */
+  .page-heading {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  /* File info bar */
+  .file-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    background: #fafafa;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+  }
+
+  .file-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-sm);
+    background: var(--primary-faint);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+
+  .file-info { flex: 1; min-width: 0; }
+  .file-name {
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .file-size { font-size: 11px; color: var(--muted); }
+
+  .file-delete {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-sm);
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    transition: all 0.15s;
+  }
+  .file-delete:hover { background: #fee; color: var(--destructive); }
+
+  /* Audio player */
+  .audio-player {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .play-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    background: var(--card);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all 0.15s;
+  }
+  .play-btn:hover { border-color: var(--primary); }
+  .play-btn svg { margin-left: 2px; }
+
+  .progress-track {
+    flex: 1;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    position: relative;
+    overflow: hidden;
+  }
+  .progress-fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 35%;
+    background: var(--primary);
+    border-radius: 2px;
+  }
+
+  .time-label {
+    font-size: 11px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+  }
+
+  /* Snippet section */
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+
+  .section-title {
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .snippet-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  .snippet-duration {
+    font-weight: 600;
+    color: var(--primary);
+  }
+
+  /* Waveform */
+  .waveform-container {
+    position: relative;
+    height: 64px;
+    user-select: none;
+  }
+
+  .waveform-bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 1.5px;
+    height: 100%;
+    width: 100%;
+  }
+
+  .waveform-bar {
+    flex: 1;
+    border-radius: 1px;
+    background: var(--border);
+    transition: background 0.1s;
+    min-width: 0;
+  }
+
+  .waveform-bar.active {
+    background: var(--primary);
+  }
+
+  .waveform-bar.suggested {
+    background: var(--border);
+    position: relative;
+  }
+
+  .waveform-bar.suggested::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 1px;
+    border: 1.5px dashed var(--primary-light);
+    background: var(--primary-glow);
+  }
+
+  .waveform-bar.active.suggested {
+    background: var(--primary);
+  }
+  .waveform-bar.active.suggested::after {
+    display: none;
+  }
+
+  /* Handles */
+  .handle {
+    position: absolute;
+    top: 0;
+    width: 3px;
+    height: 100%;
+    background: var(--primary);
+    border-radius: 2px;
+    cursor: ew-resize;
+    z-index: 2;
+  }
+  .handle::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 12px;
+    height: 24px;
+    border-radius: 6px;
+    background: var(--primary);
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .handle:hover::before { opacity: 0.15; }
+
+  .handle-left { left: 0%; }
+  .handle-right-30 { left: 37.5%; }
+  .handle-right-full { right: 0; }
+
+  /* Suggested range overlay */
+  .suggested-range {
+    position: absolute;
+    top: -2px;
+    bottom: -2px;
+    border: 2px dashed var(--primary-light);
+    border-radius: 4px;
+    pointer-events: none;
+    z-index: 1;
+    background: oklch(0.65 0.22 293 / 0.04);
+  }
+
+  /* AI Suggest button */
+  .ai-suggest-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 16px;
+    border-radius: var(--radius-pill);
+    border: 1.5px solid var(--border);
+    background: var(--card);
+    font-size: 12px;
+    font-weight: 600;
+    font-family: inherit;
+    color: var(--fg);
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 10px;
+  }
+  .ai-suggest-btn:hover {
+    border-color: var(--primary);
+    background: var(--primary-faint);
+    color: var(--primary);
+  }
+  .ai-suggest-btn .sparkle { font-size: 14px; }
+
+  /* Loading state */
+  .ai-loading {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 16px;
+    border-radius: var(--radius-pill);
+    border: 1.5px solid var(--border-focus);
+    background: var(--primary-faint);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--primary);
+    margin-top: 10px;
+  }
+
+  .ai-loading .dots {
+    display: flex;
+    gap: 3px;
+  }
+  .ai-loading .dot {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--primary);
+    animation: dotPulse 1.2s ease-in-out infinite;
+  }
+  .ai-loading .dot:nth-child(2) { animation-delay: 0.15s; }
+  .ai-loading .dot:nth-child(3) { animation-delay: 0.3s; }
+
+  @keyframes dotPulse {
+    0%, 60%, 100% { opacity: 0.3; transform: scale(0.8); }
+    30% { opacity: 1; transform: scale(1); }
+  }
+
+  /* Suggestion card */
+  .suggestion-card {
+    margin-top: 10px;
+    padding: 14px 16px;
+    border-radius: var(--radius-card);
+    border: 1.5px solid var(--border-focus);
+    background: var(--primary-faint);
+    animation: slideUp 0.3s ease-out;
+  }
+
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .suggestion-header {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .suggestion-reason {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.5;
+    margin-bottom: 12px;
+  }
+
+  .suggestion-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  .btn-apply {
+    padding: 7px 20px;
+    border-radius: var(--radius-pill);
+    border: none;
+    background: var(--primary);
+    color: white;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn-apply:hover { filter: brightness(1.1); }
+
+  .btn-dismiss {
+    padding: 7px 16px;
+    border-radius: var(--radius-pill);
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn-dismiss:hover { color: var(--fg); }
+
+  /* Faded form fields */
+  .faded { opacity: 0.3; pointer-events: none; }
+
+  .form-label {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    display: block;
+  }
+
+  .form-input {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-family: inherit;
+    color: var(--muted);
+    background: var(--card);
+  }
+
+  .tag-pills {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .tag-pill {
+    padding: 5px 12px;
+    border-radius: var(--radius-pill);
+    border: 1.5px solid var(--border);
+    font-size: 11px;
+    color: var(--muted);
+    background: var(--card);
+  }
+  .tag-pill.selected {
+    border-color: var(--primary);
+    background: var(--primary-faint);
+    color: var(--primary);
+    font-weight: 600;
+  }
+
+  .context-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .context-card {
+    padding: 12px;
+    border-radius: var(--radius-card);
+    border: 1.5px solid var(--border);
+    text-align: center;
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .context-card.selected {
+    border-color: var(--primary);
+    background: var(--primary-faint);
+  }
+  .context-card .emoji { font-size: 20px; display: block; margin-bottom: 4px; }
+  .context-card .name { font-weight: 600; color: var(--fg); font-size: 12px; }
+
+  /* Title bar */
+  .title-bar {
+    text-align: center;
+    padding: 20px 0 8px;
+  }
+  .title-bar h1 {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--muted);
+  }
+  .title-bar h1 span { color: var(--fg); }
+
+  /* Annotation arrow */
+  .annotation {
+    position: relative;
+    margin-top: 4px;
+    padding: 8px 12px;
+    background: oklch(0.97 0.01 80);
+    border: 1.5px solid oklch(0.85 0.08 80);
+    border-radius: var(--radius-sm);
+    font-size: 11px;
+    color: oklch(0.45 0.08 80);
+    font-weight: 500;
+    line-height: 1.4;
+  }
+  .annotation::before {
+    content: '^ NEW';
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: oklch(0.55 0.15 80);
+    display: block;
+    margin-bottom: 2px;
+  }
+</style>
+</head>
+<body>
+
+<div class="title-bar">
+  <h1><span>Snippet Assistant</span> — Upload Page Wireframe</h1>
+</div>
+
+<div class="page">
+
+  <!-- VARIANT A: Default + Loading -->
+  <div class="variant">
+    <div class="variant-label">A &mdash; Default &amp; Loading State</div>
+    <div class="phone-frame">
+
+      <div class="page-heading">Upload Track</div>
+
+      <!-- File bar -->
+      <div class="file-bar">
+        <div class="file-icon">🎵</div>
+        <div class="file-info">
+          <div class="file-name">neon-dreams.mp3</div>
+          <div class="file-size">4.2 MB</div>
+        </div>
+        <button class="file-delete">&times;</button>
+      </div>
+
+      <!-- Audio player -->
+      <div class="audio-player">
+        <button class="play-btn">
+          <svg width="14" height="16" viewBox="0 0 14 16" fill="currentColor">
+            <path d="M1 1.5v13l11.5-6.5z"/>
+          </svg>
+        </button>
+        <div class="progress-track">
+          <div class="progress-fill"></div>
+        </div>
+        <span class="time-label">0:10 / 0:30</span>
+      </div>
+
+      <!-- Snippet trimmer -->
+      <div>
+        <div class="section-header">
+          <span class="section-title">Select Snippet</span>
+        </div>
+        <div class="snippet-meta">
+          <span>Snippet: 0:00 – 0:30</span>
+          <span class="snippet-duration">30.0s (15-30s)</span>
+        </div>
+
+        <div class="waveform-container" id="waveform-a">
+          <div class="waveform-bars" id="bars-a"></div>
+          <div class="handle handle-left"></div>
+          <div class="handle" style="left: 37.5%"></div>
+        </div>
+
+        <!-- AI Suggest button (default) -->
+        <button class="ai-suggest-btn">
+          <span class="sparkle">✨</span>
+          AI Suggest
+        </button>
+
+        <div class="annotation">
+          One-tap button below the trimmer. Available as soon as the waveform loads — analyzes audio energy to find the most dynamic 30s window.
+        </div>
+
+        <!-- Loading state (shown below for reference) -->
+        <div style="margin-top: 16px; padding-top: 16px; border-top: 1px dashed var(--border);">
+          <div style="font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted-light); margin-bottom: 8px;">After clicking:</div>
+          <div class="ai-loading">
+            <div class="dots">
+              <div class="dot"></div>
+              <div class="dot"></div>
+              <div class="dot"></div>
+            </div>
+            Analyzing waveform...
+          </div>
+          <div class="annotation">
+            Button transforms into a loading pill. Waveform stays interactive &mdash; user can still adjust manually while AI processes.
+          </div>
+        </div>
+      </div>
+
+      <!-- Faded form fields -->
+      <div class="faded" style="display: flex; flex-direction: column; gap: 16px;">
+        <div>
+          <label class="form-label">Track Title</label>
+          <input class="form-input" value="Neon Dreams" readonly>
+        </div>
+        <div>
+          <label class="form-label">Genre Tags</label>
+          <div class="tag-pills">
+            <span class="tag-pill selected">Synthwave</span>
+            <span class="tag-pill selected">Electronic</span>
+            <span class="tag-pill">Pop</span>
+            <span class="tag-pill">Hip-Hop</span>
+          </div>
+        </div>
+        <div>
+          <label class="form-label">Where will this track be heard?</label>
+          <div class="context-grid">
+            <div class="context-card selected">
+              <span class="emoji">📱</span>
+              <span class="name">TikTok / Reels</span>
+            </div>
+            <div class="context-card">
+              <span class="emoji">🎧</span>
+              <span class="name">Spotify Discover</span>
+            </div>
+            <div class="context-card">
+              <span class="emoji">📻</span>
+              <span class="name">Radio</span>
+            </div>
+            <div class="context-card">
+              <span class="emoji">🎬</span>
+              <span class="name">Sync</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VARIANT B: Suggestion Received -->
+  <div class="variant">
+    <div class="variant-label">B &mdash; Suggestion Received</div>
+    <div class="phone-frame">
+
+      <div class="page-heading">Upload Track</div>
+
+      <!-- File bar -->
+      <div class="file-bar">
+        <div class="file-icon">🎵</div>
+        <div class="file-info">
+          <div class="file-name">neon-dreams.mp3</div>
+          <div class="file-size">4.2 MB</div>
+        </div>
+        <button class="file-delete">&times;</button>
+      </div>
+
+      <!-- Audio player -->
+      <div class="audio-player">
+        <button class="play-btn">
+          <svg width="14" height="16" viewBox="0 0 14 16" fill="currentColor">
+            <path d="M1 1.5v13l11.5-6.5z"/>
+          </svg>
+        </button>
+        <div class="progress-track">
+          <div class="progress-fill"></div>
+        </div>
+        <span class="time-label">0:10 / 0:30</span>
+      </div>
+
+      <!-- Snippet trimmer with suggestion -->
+      <div>
+        <div class="section-header">
+          <span class="section-title">Select Snippet</span>
+        </div>
+        <div class="snippet-meta">
+          <span>Snippet: 0:00 – 0:30</span>
+          <span class="snippet-duration">30.0s (15-30s)</span>
+        </div>
+
+        <div class="waveform-container" id="waveform-b">
+          <div class="waveform-bars" id="bars-b"></div>
+          <div class="handle handle-left"></div>
+          <div class="handle" style="left: 37.5%"></div>
+          <!-- Suggested range indicator -->
+          <div class="suggested-range" style="left: 10%; right: 52.5%;"></div>
+        </div>
+
+        <!-- Suggestion card -->
+        <div class="suggestion-card">
+          <div class="suggestion-header">
+            <span>✨</span>
+            Suggested: 0:08 – 0:38
+          </div>
+          <div class="suggestion-reason">
+            Peak energy at 0:12 with a dynamic build — this section has the strongest contrast and avoids low-energy stretches.
+          </div>
+          <div class="suggestion-actions">
+            <button class="btn-apply">Apply</button>
+            <button class="btn-dismiss">Dismiss</button>
+          </div>
+        </div>
+
+        <div class="annotation">
+          Card slides up with suggested range shown as a dashed outline on the waveform. "Apply" snaps the handles to the suggested range. "Dismiss" hides the card and restores the default button.
+        </div>
+      </div>
+
+      <!-- Faded form fields -->
+      <div class="faded" style="display: flex; flex-direction: column; gap: 16px;">
+        <div>
+          <label class="form-label">Track Title</label>
+          <input class="form-input" value="Neon Dreams" readonly>
+        </div>
+        <div>
+          <label class="form-label">Genre Tags</label>
+          <div class="tag-pills">
+            <span class="tag-pill selected">Synthwave</span>
+            <span class="tag-pill selected">Electronic</span>
+            <span class="tag-pill">Pop</span>
+            <span class="tag-pill">Hip-Hop</span>
+          </div>
+        </div>
+        <div>
+          <label class="form-label">Where will this track be heard?</label>
+          <div class="context-grid">
+            <div class="context-card selected">
+              <span class="emoji">📱</span>
+              <span class="name">TikTok / Reels</span>
+            </div>
+            <div class="context-card">
+              <span class="emoji">🎧</span>
+              <span class="name">Spotify Discover</span>
+            </div>
+            <div class="context-card">
+              <span class="emoji">📻</span>
+              <span class="name">Radio</span>
+            </div>
+            <div class="context-card">
+              <span class="emoji">🎬</span>
+              <span class="name">Sync</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // Generate waveform bars with realistic audio energy profile
+  const barHeights = [
+    0.15, 0.20, 0.18, 0.25, 0.30, 0.22, 0.35, 0.40, 0.38, 0.45,
+    0.50, 0.55, 0.60, 0.65, 0.70, 0.72, 0.68, 0.75, 0.80, 0.85,
+    0.90, 0.88, 0.92, 0.95, 1.00, 0.97, 0.93, 0.90, 0.85, 0.80,
+    0.75, 0.70, 0.65, 0.60, 0.55, 0.50, 0.48, 0.45, 0.42, 0.40,
+    0.38, 0.35, 0.40, 0.45, 0.50, 0.55, 0.60, 0.62, 0.58, 0.55,
+    0.50, 0.48, 0.45, 0.42, 0.38, 0.35, 0.32, 0.30, 0.28, 0.25,
+    0.30, 0.35, 0.40, 0.45, 0.50, 0.52, 0.48, 0.45, 0.40, 0.35,
+    0.30, 0.25, 0.22, 0.20, 0.18, 0.15, 0.12, 0.10, 0.08, 0.05
+  ];
+
+  // Waveform A: first 30 bars active (0:00-0:30 selected)
+  const barsA = document.getElementById('bars-a');
+  barHeights.forEach((h, i) => {
+    const bar = document.createElement('div');
+    bar.className = 'waveform-bar' + (i < 30 ? ' active' : '');
+    bar.style.height = Math.max(4, h * 60) + 'px';
+    barsA.appendChild(bar);
+  });
+
+  // Waveform B: first 30 bars active + bars 8-38 have suggested indicator
+  const barsB = document.getElementById('bars-b');
+  barHeights.forEach((h, i) => {
+    const bar = document.createElement('div');
+    let cls = 'waveform-bar';
+    if (i < 30) cls += ' active';
+    if (i >= 8 && i < 38) cls += ' suggested';
+    bar.className = cls;
+    bar.style.height = Math.max(4, h * 60) + 'px';
+    barsB.appendChild(bar);
+  });
+</script>
+
+</body>
+</html>

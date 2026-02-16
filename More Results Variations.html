@@ -1,0 +1,1057 @@
+<!DOCTYPE html>
+<!-- saved from url=(0092)file:///Users/sharonchen/Documents/2026/music-virality-rater/mockups/results-collecting.html -->
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>More Results Variations</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #09090b; color: #fafafa; padding: 24px 16px;
+  }
+  .concepts { display: flex; flex-wrap: wrap; gap: 32px; justify-content: center; align-items: flex-start; }
+  .concept { max-width: 400px; width: 100%; border: 1px solid #27272a; border-radius: 16px; overflow: hidden; }
+  .concept-label {
+    padding: 12px 16px; font-size: 11px; text-transform: uppercase;
+    letter-spacing: 0.12em; color: #a1a1aa; background: #18181b;
+    border-bottom: 1px solid #27272a; font-weight: 600;
+  }
+  .concept-body { padding: 20px; }
+  .section { margin-bottom: 20px; }
+  .title { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+  .delete-btn { background: none; border: none; color: #ef4444; font-size: 13px; cursor: pointer; padding: 4px 8px; }
+  .header { display: flex; justify-content: space-between; align-items: flex-start; }
+
+  /* Audio player */
+  .audio-player {
+    background: #18181b; border-radius: 12px; padding: 14px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .play-btn {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: hsl(262, 83%, 58%); border: none;
+    display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
+  }
+  .play-btn::after {
+    content: ''; width: 0; height: 0;
+    border-left: 10px solid white; border-top: 6px solid transparent;
+    border-bottom: 6px solid transparent; margin-left: 2px;
+  }
+  .audio-waveform-bars {
+    display: flex; align-items: end; gap: 2px; flex: 1; height: 28px;
+  }
+  .waveform-bar { flex: 1; background: #3f3f46; border-radius: 2px; }
+  .waveform-bar.played { background: hsl(262, 83%, 58%, 0.6); }
+  .time { font-size: 11px; color: #71717a; flex-shrink: 0; }
+
+  /* Share */
+  .share-card { border: 1px solid #27272a; border-radius: 12px; padding: 14px; }
+  .share-title { font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+  .share-row { display: flex; gap: 6px; }
+  .share-input { flex: 1; padding: 6px 10px; border-radius: 8px; background: #27272a; color: #71717a; font-size: 11px; border: none; }
+  .btn-sm { padding: 6px 10px; border-radius: 8px; font-size: 11px; background: none; border: 1px solid #27272a; color: #fafafa; cursor: pointer; }
+  .share-actions { display: flex; gap: 6px; margin-top: 8px; }
+  .btn-sec { flex: 1; padding: 6px; border-radius: 8px; font-size: 11px; background: #27272a; border: none; color: #fafafa; cursor: pointer; text-align: center; }
+
+  /* Shared audio player block (reused) */
+  .audio-block { margin-bottom: 20px; }
+
+  /* ============================================ */
+  /* M-A: Crowd Applause-O-Meter */
+  /* ============================================ */
+  @keyframes crowdPulse { 0%,100% { transform: scaleY(1); } 50% { transform: scaleY(1.15); } }
+  @keyframes clap1 { 0%,100% { transform: rotate(-5deg); } 50% { transform: rotate(5deg); } }
+  @keyframes clap2 { 0%,100% { transform: rotate(3deg); } 50% { transform: rotate(-3deg); } }
+  @keyframes handWave { 0%,100% { transform: translateY(0) rotate(0); } 50% { transform: translateY(-6px) rotate(8deg); } }
+
+  .applause-card {
+    background: linear-gradient(180deg, #100a1a 0%, #0a0610 100%);
+    border-radius: 16px; overflow: hidden; border: 1px solid #1e1828;
+  }
+  .applause-stage {
+    position: relative; padding: 24px 20px 0; text-align: center;
+    background: radial-gradient(ellipse at 50% 0%, hsl(262,83%,58%,0.12) 0%, transparent 60%);
+  }
+  /* Meter arc */
+  .meter-arc {
+    width: 180px; height: 100px; margin: 0 auto; position: relative; overflow: hidden;
+  }
+  .meter-arc-bg {
+    width: 180px; height: 180px; border-radius: 50%;
+    border: 10px solid #1a1424;
+    border-bottom-color: transparent;
+    border-left-color: transparent;
+    transform: rotate(225deg);
+    position: absolute; top: 0; left: 0;
+  }
+  .meter-arc-fill {
+    width: 180px; height: 180px; border-radius: 50%;
+    border: 10px solid transparent;
+    border-top-color: hsl(262,83%,58%);
+    border-right-color: hsl(280,70%,55%);
+    border-bottom-color: transparent;
+    border-left-color: transparent;
+    transform: rotate(225deg);
+    position: absolute; top: 0; left: 0;
+    clip-path: polygon(0 0, 58% 0, 58% 100%, 0 100%);
+  }
+  .meter-needle {
+    position: absolute; bottom: 0; left: 50%; width: 3px; height: 70px;
+    background: linear-gradient(to top, hsl(262,83%,58%), transparent);
+    transform-origin: bottom center; transform: rotate(-25deg);
+    border-radius: 2px;
+  }
+  .meter-score {
+    position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%);
+    font-size: 36px; font-weight: 900; color: #fff;
+  }
+
+  .applause-crowd {
+    display: flex; justify-content: center; align-items: flex-end;
+    gap: 2px; height: 50px; margin-top: 12px; padding: 0 10px;
+  }
+  .crowd-person-a {
+    display: flex; flex-direction: column; align-items: center;
+    animation: crowdPulse 1.2s ease-in-out infinite;
+  }
+  .crowd-person-a:nth-child(even) { animation-delay: 0.3s; }
+  .crowd-person-a:nth-child(3n) { animation-delay: 0.6s; }
+  .cpa-hands { display: flex; gap: 1px; margin-bottom: 1px; }
+  .cpa-hand-l, .cpa-hand-r {
+    width: 4px; height: 6px; border-radius: 2px; background: #4a3f5e;
+  }
+  .cpa-hand-l { animation: clap1 0.4s ease-in-out infinite; }
+  .cpa-hand-r { animation: clap2 0.4s ease-in-out infinite; }
+  .cpa-head { width: 8px; height: 8px; border-radius: 50%; background: #4a3f5e; }
+  .cpa-body { width: 12px; height: 18px; border-radius: 4px 4px 0 0; background: #3a3050; }
+
+  .applause-label {
+    font-size: 10px; color: #7a6f8e; text-transform: uppercase;
+    letter-spacing: 0.12em; margin-top: 8px; padding-bottom: 12px;
+  }
+
+  .applause-counter {
+    padding: 8px 16px; text-align: center; font-size: 11px; color: #5a5070;
+    border-top: 1px solid #1e1828; background: rgba(255,255,255,0.01);
+  }
+  .applause-counter strong { color: #b8a8d8; }
+
+  .applause-dims { padding: 14px 20px 20px; display: flex; flex-direction: column; gap: 8px; }
+  .applause-dim {
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(255,255,255,0.02); border-radius: 8px; padding: 8px 10px;
+  }
+  .applause-dim-emoji { font-size: 16px; }
+  .applause-dim-info { flex: 1; }
+  .applause-dim-name { font-size: 10px; color: #6a5f80; margin-bottom: 3px; }
+  .applause-dim-bar { height: 5px; background: #1a1424; border-radius: 3px; overflow: hidden; }
+  .applause-dim-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, hsl(262,83%,45%), hsl(280,70%,55%)); }
+  .applause-dim-pct { font-size: 13px; font-weight: 700; color: #c8b8e8; width: 36px; text-align: right; }
+
+  /* ============================================ */
+  /* M-B: Open Mic Night / Stage Spotlight */
+  /* ============================================ */
+  @keyframes spotlightPulse { 0%,100% { opacity: 0.08; } 50% { opacity: 0.14; } }
+  @keyframes micGlow { 0%,100% { box-shadow: 0 0 12px hsl(40,60%,50%,0.3); } 50% { box-shadow: 0 0 24px hsl(40,60%,50%,0.5); } }
+
+  .mic-card {
+    background: linear-gradient(180deg, #12100d 0%, #0a0908 100%);
+    border-radius: 16px; overflow: hidden; border: 1px solid #2a2520;
+  }
+  .mic-stage {
+    position: relative; padding: 28px 20px 16px; text-align: center;
+    background: radial-gradient(ellipse at 50% 20%, hsl(40,60%,50%,0.08) 0%, transparent 60%);
+    min-height: 160px;
+  }
+  .spotlight-circle {
+    position: absolute; top: -30px; left: 50%; transform: translateX(-50%);
+    width: 200px; height: 200px; border-radius: 50%;
+    background: radial-gradient(circle, hsl(40,60%,50%,0.1), transparent 60%);
+    animation: spotlightPulse 3s ease-in-out infinite;
+  }
+  .mic-icon {
+    width: 48px; height: 48px; margin: 0 auto 12px; border-radius: 50%;
+    background: linear-gradient(135deg, #2a2420, #1e1a16);
+    border: 2px solid hsl(40,40%,30%);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; position: relative;
+    animation: micGlow 2s ease-in-out infinite;
+  }
+  .mic-score {
+    font-size: 52px; font-weight: 900; line-height: 1; position: relative;
+    background: linear-gradient(135deg, hsl(40,70%,65%), hsl(30,60%,45%));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .mic-label {
+    font-size: 10px; color: hsl(40,30%,45%); text-transform: uppercase;
+    letter-spacing: 0.12em; margin-top: 4px; position: relative;
+  }
+  /* Seated audience dots */
+  .mic-audience {
+    display: flex; justify-content: center; gap: 6px; margin-top: 14px;
+    position: relative;
+  }
+  .seat {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: hsl(40,30%,25%); position: relative;
+  }
+  .seat.filled { background: hsl(40,50%,40%); }
+  .seat.filled::after {
+    content: ''; position: absolute; top: -2px; left: 50%; transform: translateX(-50%);
+    width: 4px; height: 4px; border-radius: 50%; background: hsl(40,50%,55%);
+  }
+  .mic-audience-label {
+    font-size: 9px; color: #5c5040; margin-top: 6px; position: relative;
+  }
+
+  .mic-counter {
+    padding: 8px 16px; text-align: center; font-size: 11px; color: #6a5f50;
+    border-top: 1px solid #2a2520; background: rgba(255,255,255,0.01);
+  }
+  .mic-counter strong { color: #c4b49a; }
+
+  .mic-dims { padding: 14px 20px 20px; display: flex; flex-direction: column; gap: 8px; }
+  .mic-dim {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .mic-dim-emoji { font-size: 16px; width: 24px; text-align: center; }
+  .mic-dim-info { flex: 1; }
+  .mic-dim-name { font-size: 10px; color: #7a6f60; margin-bottom: 3px; }
+  .mic-dim-bar { height: 5px; background: #1e1a16; border-radius: 3px; overflow: hidden; }
+  .mic-dim-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, hsl(40,50%,35%), hsl(40,60%,50%)); }
+  .mic-dim-pct { font-size: 13px; font-weight: 700; color: #c4b49a; width: 36px; text-align: right; }
+
+  /* ============================================ */
+  /* M-C: Neon Marquee / Billboard */
+  /* ============================================ */
+  @keyframes neonFlicker {
+    0%,100% { opacity: 1; } 5% { opacity: 0.8; } 10% { opacity: 1; }
+    15% { opacity: 0.9; } 20% { opacity: 1; }
+  }
+  @keyframes marqueeScroll { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
+  @keyframes bulbChase {
+    0% { opacity: 0.3; } 50% { opacity: 1; } 100% { opacity: 0.3; }
+  }
+
+  .marquee-card {
+    background: #0a0a0e; border-radius: 16px; overflow: hidden;
+    border: 2px solid #2a2a35;
+  }
+  /* Bulb border */
+  .marquee-top {
+    position: relative; padding: 24px 20px 16px; text-align: center;
+    background: #0e0e14;
+  }
+  .bulb-row {
+    display: flex; justify-content: center; gap: 10px;
+    margin-bottom: 14px;
+  }
+  .bulb {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: hsl(50,80%,60%); box-shadow: 0 0 6px hsl(50,80%,60%,0.5);
+    animation: bulbChase 1.5s ease-in-out infinite;
+  }
+  .bulb:nth-child(2) { animation-delay: 0.15s; }
+  .bulb:nth-child(3) { animation-delay: 0.3s; }
+  .bulb:nth-child(4) { animation-delay: 0.45s; }
+  .bulb:nth-child(5) { animation-delay: 0.6s; }
+  .bulb:nth-child(6) { animation-delay: 0.75s; }
+  .bulb:nth-child(7) { animation-delay: 0.9s; }
+  .bulb:nth-child(8) { animation-delay: 1.05s; }
+  .bulb:nth-child(9) { animation-delay: 1.2s; }
+  .bulb:nth-child(10) { animation-delay: 1.35s; }
+
+  .marquee-score {
+    font-size: 64px; font-weight: 900; line-height: 1;
+    color: hsl(50,80%,65%);
+    text-shadow: 0 0 20px hsl(50,80%,60%,0.4), 0 0 60px hsl(50,80%,60%,0.15);
+    animation: neonFlicker 4s ease-in-out infinite;
+  }
+  .marquee-sublabel {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.15em;
+    color: hsl(50,40%,45%); margin-top: 4px;
+  }
+
+  /* Scrolling ticker */
+  .marquee-ticker {
+    overflow: hidden; padding: 6px 0;
+    border-top: 1px solid #1e1e28; border-bottom: 1px solid #1e1e28;
+    background: #0a0a10;
+  }
+  .marquee-ticker-inner {
+    display: inline-block; white-space: nowrap;
+    animation: marqueeScroll 10s linear infinite;
+    font-size: 10px; color: #52525b; letter-spacing: 0.05em;
+  }
+
+  .marquee-counter {
+    padding: 8px 16px; text-align: center; font-size: 11px; color: #52525b;
+    background: rgba(255,255,255,0.01);
+  }
+  .marquee-counter strong { color: hsl(50,60%,60%); }
+
+  .marquee-dims { padding: 14px 20px 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .marquee-dim {
+    background: #111118; border-radius: 10px; padding: 10px;
+    border: 1px solid #1e1e28; text-align: center;
+  }
+  .marquee-dim-emoji { font-size: 20px; margin-bottom: 4px; }
+  .marquee-dim-name { font-size: 9px; color: #52525b; text-transform: uppercase; letter-spacing: 0.08em; }
+  .marquee-dim-score {
+    font-size: 22px; font-weight: 800; margin-top: 2px;
+    color: hsl(50,70%,60%); text-shadow: 0 0 10px hsl(50,70%,60%,0.2);
+  }
+
+  /* ============================================ */
+  /* M-D: Record Label Demo Package */
+  /* ============================================ */
+  .demo-card {
+    background: #faf9f6; color: #1a1a1e; border-radius: 16px; overflow: hidden;
+    font-family: 'Courier New', monospace;
+  }
+  .demo-header {
+    padding: 16px 20px 12px;
+    border-bottom: 2px solid #1a1a1e;
+  }
+  .demo-header-row { display: flex; justify-content: space-between; align-items: center; }
+  .demo-brand {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.2em;
+    font-weight: 700;
+  }
+  .demo-status {
+    font-size: 9px; text-transform: uppercase; letter-spacing: 0.1em;
+    padding: 2px 8px; border: 1px solid #1a1a1e; border-radius: 3px;
+  }
+  .demo-title-area { margin-top: 12px; }
+  .demo-track-title { font-size: 20px; font-weight: 700; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
+  .demo-meta { font-size: 10px; color: #71717a; margin-top: 2px; }
+
+  .demo-score-section {
+    padding: 20px; text-align: center; border-bottom: 1px dashed #d4d4d8;
+  }
+  .demo-score-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.15em; color: #71717a; }
+  .demo-score-value {
+    font-size: 48px; font-weight: 900; line-height: 1; margin-top: 4px;
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+  .demo-progress-bar {
+    width: 140px; height: 6px; background: #e4e4e7; border-radius: 3px;
+    margin: 10px auto 0; overflow: hidden;
+  }
+  .demo-progress-fill { height: 100%; background: #1a1a1e; border-radius: 3px; }
+  .demo-progress-text { font-size: 9px; color: #71717a; margin-top: 4px; }
+
+  .demo-dims {
+    padding: 16px 20px 20px; display: flex; flex-direction: column; gap: 10px;
+  }
+  .demo-dim-row { display: flex; align-items: center; gap: 8px; }
+  .demo-dim-label { font-size: 10px; width: 80px; text-transform: uppercase; letter-spacing: 0.05em; color: #52525b; }
+  .demo-dim-dots { flex: 1; display: flex; gap: 3px; }
+  .demo-dot {
+    width: 10px; height: 10px; border-radius: 2px; background: #e4e4e7;
+  }
+  .demo-dot.filled { background: #1a1a1e; }
+  .demo-dim-pct { font-size: 12px; font-weight: 700; width: 32px; text-align: right; }
+
+  .demo-stamp {
+    padding: 12px 20px; border-top: 1px dashed #d4d4d8;
+    text-align: center;
+  }
+  .demo-stamp-text {
+    display: inline-block; padding: 4px 16px;
+    border: 2px solid hsl(262,83%,58%); border-radius: 4px;
+    color: hsl(262,83%,58%); font-size: 10px; text-transform: uppercase;
+    letter-spacing: 0.15em; font-weight: 700;
+    transform: rotate(-2deg);
+  }
+
+  /* ============================================ */
+  /* M-E: Crowd Hands Raised Heatmap */
+  /* ============================================ */
+  @keyframes handFloat1 { 0%,100% { transform: translateY(0) rotate(-5deg); } 50% { transform: translateY(-5px) rotate(5deg); } }
+  @keyframes handFloat2 { 0%,100% { transform: translateY(0) rotate(3deg); } 50% { transform: translateY(-7px) rotate(-3deg); } }
+  @keyframes handFloat3 { 0%,100% { transform: translateY(-2px) rotate(0); } 50% { transform: translateY(-8px) rotate(6deg); } }
+
+  .hands-card {
+    background: linear-gradient(180deg, #0e0a16 0%, #08060e 100%);
+    border-radius: 16px; overflow: hidden; border: 1px solid #1e1828;
+  }
+  .hands-stage {
+    position: relative; padding: 20px; text-align: center;
+    min-height: 200px;
+    background:
+      radial-gradient(ellipse at 50% 80%, hsl(262,83%,58%,0.15) 0%, transparent 50%),
+      radial-gradient(ellipse at 30% 60%, hsl(320,80%,50%,0.06) 0%, transparent 40%),
+      radial-gradient(ellipse at 70% 60%, hsl(200,80%,50%,0.06) 0%, transparent 40%);
+  }
+  .hands-score-area { position: relative; z-index: 2; margin-bottom: 12px; }
+  .hands-score {
+    font-size: 56px; font-weight: 900; line-height: 1; color: #fff;
+    text-shadow: 0 0 40px hsl(262,83%,58%,0.4);
+  }
+  .hands-label {
+    font-size: 10px; color: hsl(262,60%,60%); text-transform: uppercase;
+    letter-spacing: 0.12em; margin-top: 4px;
+  }
+  /* Raised hand silhouettes */
+  .hands-crowd {
+    display: flex; justify-content: center; align-items: flex-end;
+    gap: 4px; height: 80px; position: relative; z-index: 1;
+  }
+  .raised-hand {
+    font-size: 20px; display: inline-block;
+    filter: saturate(0.4) brightness(0.6);
+  }
+  .raised-hand:nth-child(1) { animation: handFloat1 2.2s ease-in-out infinite; }
+  .raised-hand:nth-child(2) { animation: handFloat2 1.8s ease-in-out infinite; animation-delay: 0.2s; font-size: 24px; filter: saturate(0.5) brightness(0.7); }
+  .raised-hand:nth-child(3) { animation: handFloat3 2s ease-in-out infinite; animation-delay: 0.5s; }
+  .raised-hand:nth-child(4) { animation: handFloat1 2.4s ease-in-out infinite; animation-delay: 0.1s; font-size: 26px; filter: saturate(0.6) brightness(0.75); }
+  .raised-hand:nth-child(5) { animation: handFloat2 1.9s ease-in-out infinite; animation-delay: 0.3s; }
+  .raised-hand:nth-child(6) { animation: handFloat3 2.1s ease-in-out infinite; animation-delay: 0.6s; font-size: 22px; }
+  .raised-hand:nth-child(7) { animation: handFloat1 2.3s ease-in-out infinite; animation-delay: 0.4s; }
+  .raised-hand:nth-child(8) { animation: handFloat2 2s ease-in-out infinite; animation-delay: 0.7s; font-size: 18px; }
+  .raised-hand:nth-child(9) { animation: handFloat3 2.2s ease-in-out infinite; animation-delay: 0.15s; }
+
+  /* Heatmap dimension grid */
+  .hands-counter {
+    padding: 8px 16px; text-align: center; font-size: 11px; color: #5a5070;
+    border-top: 1px solid #1e1828; background: rgba(255,255,255,0.01);
+  }
+  .hands-counter strong { color: #b8a8d8; }
+
+  .hands-dims { padding: 14px 20px 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .hands-dim {
+    border-radius: 12px; padding: 12px; text-align: center;
+    position: relative; overflow: hidden;
+  }
+  .hands-dim.hot { background: hsl(262,83%,58%,0.15); border: 1px solid hsl(262,83%,58%,0.25); }
+  .hands-dim.warm { background: hsl(280,60%,45%,0.1); border: 1px solid hsl(280,60%,50%,0.2); }
+  .hands-dim.cool { background: hsl(240,40%,35%,0.1); border: 1px solid hsl(240,40%,40%,0.15); }
+  .hands-dim-emoji { font-size: 22px; margin-bottom: 4px; }
+  .hands-dim-name { font-size: 9px; color: #71717a; text-transform: uppercase; letter-spacing: 0.06em; }
+  .hands-dim-pct { font-size: 22px; font-weight: 800; margin-top: 2px; color: #e4d4f4; }
+
+  /* ============================================ */
+  /* M-F: Vinyl Sleeve / Album Review */
+  /* ============================================ */
+  @keyframes vinylSpin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+  .vinyl-card {
+    background: linear-gradient(145deg, #1a1a20, #111116);
+    border-radius: 16px; overflow: hidden; border: 1px solid #27272a;
+    position: relative;
+  }
+  .vinyl-top {
+    padding: 20px; display: flex; gap: 16px; align-items: center;
+  }
+  /* Mini spinning vinyl */
+  .vinyl-disc {
+    width: 72px; height: 72px; border-radius: 50%; flex-shrink: 0;
+    background:
+      radial-gradient(circle at center, #18181b 18%, transparent 19%),
+      radial-gradient(circle at center, transparent 36%, #27272a 37%, #27272a 38%, transparent 39%),
+      conic-gradient(from 0deg, #1a1a20, #2a2a30, #1a1a20, #2a2a30, #1a1a20);
+    border: 2px solid #3f3f46;
+    animation: vinylSpin 4s linear infinite;
+    box-shadow: 0 0 20px rgba(0,0,0,0.3);
+  }
+  .vinyl-info { flex: 1; }
+  .vinyl-track { font-size: 18px; font-weight: 700; }
+  .vinyl-artist { font-size: 12px; color: #71717a; margin-top: 2px; }
+  .vinyl-context {
+    display: inline-block; font-size: 9px; padding: 2px 6px;
+    background: hsl(262,83%,58%,0.1); color: hsl(262,83%,70%);
+    border-radius: 4px; margin-top: 4px; text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .vinyl-score-section {
+    padding: 20px; text-align: center;
+    background: linear-gradient(180deg, transparent, rgba(124,58,237,0.03));
+    border-top: 1px solid #1e1e24;
+  }
+  .vinyl-rating-stars { font-size: 20px; letter-spacing: 4px; margin-bottom: 4px; }
+  .vinyl-score-big {
+    font-size: 44px; font-weight: 900; line-height: 1;
+    background: linear-gradient(135deg, hsl(262,83%,70%), hsl(320,70%,60%));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .vinyl-score-label {
+    font-size: 10px; color: #52525b; text-transform: uppercase;
+    letter-spacing: 0.1em; margin-top: 4px;
+  }
+  .vinyl-progress {
+    display: flex; align-items: center; gap: 8px;
+    justify-content: center; margin-top: 10px;
+  }
+  .vinyl-progress-bar {
+    width: 100px; height: 4px; background: #1e1e24;
+    border-radius: 2px; overflow: hidden;
+  }
+  .vinyl-progress-fill { height: 100%; background: hsl(262,83%,58%); border-radius: 2px; }
+  .vinyl-progress-text { font-size: 10px; color: #52525b; }
+
+  .vinyl-dims {
+    padding: 14px 20px 20px; display: flex; flex-direction: column; gap: 6px;
+    border-top: 1px solid #1e1e24;
+  }
+  .vinyl-dim { display: flex; align-items: center; gap: 8px; }
+  .vinyl-dim-emoji { font-size: 14px; width: 22px; text-align: center; }
+  .vinyl-dim-name { font-size: 11px; color: #71717a; width: 72px; }
+  .vinyl-dim-bar { flex: 1; height: 6px; background: #1e1e24; border-radius: 3px; overflow: hidden; }
+  .vinyl-dim-fill { height: 100%; border-radius: 3px; }
+  .vinyl-dim-fill.c1 { background: linear-gradient(90deg, hsl(262,83%,50%), hsl(262,83%,60%)); }
+  .vinyl-dim-fill.c2 { background: linear-gradient(90deg, hsl(280,70%,45%), hsl(280,70%,55%)); }
+  .vinyl-dim-fill.c3 { background: linear-gradient(90deg, hsl(320,60%,42%), hsl(320,60%,52%)); }
+  .vinyl-dim-fill.c4 { background: linear-gradient(90deg, hsl(200,60%,42%), hsl(200,60%,52%)); }
+  .vinyl-dim-pct { font-size: 12px; font-weight: 700; width: 32px; text-align: right; }
+
+  /* ============================================ */
+  /* M-G: Concert Ticket Stub — Torn Edge */
+  /* ============================================ */
+  .stub-card {
+    background: linear-gradient(135deg, #1c1826, #141018);
+    border-radius: 16px; overflow: hidden; border: 1px solid #2a2535;
+    position: relative;
+  }
+  .stub-top {
+    background: linear-gradient(135deg, hsl(262,83%,52%), hsl(280,70%,48%), hsl(320,60%,45%));
+    padding: 16px 20px; position: relative; overflow: hidden;
+  }
+  .stub-top::after {
+    content: '';
+    position: absolute; bottom: -8px; left: 0; right: 0; height: 16px;
+    background: url("data:image/svg+xml,%3Csvg width='16' height='16' viewBox='0 0 16 16' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 16 L8 0 L16 16' fill='%231c1826'/%3E%3C/svg%3E") repeat-x;
+    background-size: 16px 16px;
+  }
+  .stub-top-row { display: flex; justify-content: space-between; align-items: flex-start; }
+  .stub-event-name { font-size: 10px; text-transform: uppercase; letter-spacing: 0.15em; opacity: 0.7; }
+  .stub-track-title {
+    font-size: 22px; font-weight: 800; margin-top: 4px;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  }
+  .stub-admit {
+    font-size: 9px; text-transform: uppercase; letter-spacing: 0.1em;
+    padding: 3px 8px; border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 3px; white-space: nowrap; height: fit-content;
+  }
+
+  .stub-body { padding: 24px 20px 16px; }
+  .stub-score-area {
+    text-align: center; padding-bottom: 16px;
+    border-bottom: 1px dashed #2a2535;
+    margin-bottom: 16px;
+  }
+  .stub-score {
+    font-size: 52px; font-weight: 900; line-height: 1;
+    background: linear-gradient(135deg, hsl(262,83%,68%), hsl(320,60%,60%));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .stub-score-label {
+    font-size: 10px; color: #6a5f80; text-transform: uppercase;
+    letter-spacing: 0.12em; margin-top: 4px;
+  }
+  .stub-votes {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    margin-top: 8px;
+  }
+  .stub-vote-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+  }
+  .stub-vote-dot.filled { background: hsl(262,83%,58%); }
+  .stub-vote-dot.empty { background: #2a2535; }
+  .stub-vote-text { font-size: 10px; color: #5a5070; margin-left: 4px; }
+
+  .stub-dims { display: flex; flex-direction: column; gap: 8px; }
+  .stub-dim {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px; background: rgba(255,255,255,0.02);
+    border-radius: 8px;
+  }
+  .stub-dim-emoji { font-size: 16px; }
+  .stub-dim-info { flex: 1; }
+  .stub-dim-name { font-size: 10px; color: #6a5f80; margin-bottom: 3px; }
+  .stub-dim-bar { height: 5px; background: #1e1828; border-radius: 3px; overflow: hidden; }
+  .stub-dim-fill { height: 100%; border-radius: 3px; }
+  .stub-dim-fill.g1 { background: linear-gradient(90deg, hsl(262,83%,45%), hsl(262,83%,58%)); }
+  .stub-dim-fill.g2 { background: linear-gradient(90deg, hsl(280,70%,40%), hsl(280,70%,55%)); }
+  .stub-dim-fill.g3 { background: linear-gradient(90deg, hsl(320,60%,38%), hsl(320,60%,50%)); }
+  .stub-dim-fill.g4 { background: linear-gradient(90deg, hsl(200,60%,38%), hsl(200,60%,50%)); }
+  .stub-dim-pct { font-size: 13px; font-weight: 700; color: #c8b8e8; width: 36px; text-align: right; }
+
+  .stub-serial {
+    margin-top: 14px; text-align: center;
+    font-size: 9px; color: #3a3545; letter-spacing: 0.2em;
+    font-family: 'Courier New', monospace;
+  }
+
+  /* ============================================ */
+  /* M-H: Streaming Stats Card */
+  /* ============================================ */
+  @keyframes eqBar1 { 0%,100% { height: 8px; } 50% { height: 18px; } }
+  @keyframes eqBar2 { 0%,100% { height: 14px; } 50% { height: 6px; } }
+  @keyframes eqBar3 { 0%,100% { height: 10px; } 50% { height: 22px; } }
+
+  .stream-card {
+    background: #111114; border-radius: 16px; overflow: hidden;
+    border: 1px solid #1e1e24;
+  }
+  .stream-cover {
+    height: 120px; position: relative; overflow: hidden;
+    background:
+      linear-gradient(135deg, hsl(262,83%,25%), hsl(320,60%,20%), hsl(200,50%,18%));
+  }
+  .stream-cover-fade {
+    position: absolute; bottom: 0; left: 0; right: 0; height: 60px;
+    background: linear-gradient(transparent, #111114);
+  }
+  .stream-eq {
+    position: absolute; bottom: 14px; right: 16px;
+    display: flex; align-items: flex-end; gap: 3px;
+  }
+  .stream-eq-bar {
+    width: 3px; background: #fff; border-radius: 2px; opacity: 0.6;
+  }
+  .stream-eq-bar:nth-child(1) { animation: eqBar1 0.8s ease-in-out infinite; }
+  .stream-eq-bar:nth-child(2) { animation: eqBar2 0.6s ease-in-out infinite; }
+  .stream-eq-bar:nth-child(3) { animation: eqBar3 0.7s ease-in-out infinite; }
+  .stream-eq-bar:nth-child(4) { animation: eqBar1 0.9s ease-in-out infinite; animation-delay: 0.2s; }
+
+  .stream-meta {
+    padding: 0 20px 16px; position: relative; margin-top: -20px;
+  }
+  .stream-track-title { font-size: 20px; font-weight: 700; }
+  .stream-context { font-size: 11px; color: #71717a; margin-top: 2px; }
+
+  .stream-stats {
+    display: flex; padding: 0 20px; gap: 0; margin-bottom: 14px;
+  }
+  .stream-stat {
+    flex: 1; text-align: center; padding: 10px 0;
+    border-right: 1px solid #1e1e24;
+  }
+  .stream-stat:last-child { border-right: none; }
+  .stream-stat-value { font-size: 20px; font-weight: 800; }
+  .stream-stat-value.primary { color: hsl(262,83%,65%); }
+  .stream-stat-label { font-size: 9px; color: #52525b; text-transform: uppercase; letter-spacing: 0.08em; margin-top: 2px; }
+
+  .stream-dims {
+    padding: 0 20px 20px; display: flex; flex-direction: column; gap: 10px;
+  }
+  .stream-dim { display: flex; align-items: center; gap: 8px; }
+  .stream-dim-emoji { font-size: 16px; width: 22px; text-align: center; }
+  .stream-dim-info { flex: 1; }
+  .stream-dim-name { font-size: 10px; color: #52525b; margin-bottom: 3px; }
+  .stream-dim-bar-wrap { display: flex; align-items: center; gap: 8px; }
+  .stream-dim-bar { flex: 1; height: 6px; background: #1e1e24; border-radius: 3px; overflow: hidden; }
+  .stream-dim-fill { height: 100%; border-radius: 3px; background: hsl(262,83%,58%); }
+  .stream-dim-pct { font-size: 12px; font-weight: 700; width: 32px; text-align: right; }
+</style>
+</head>
+<body>
+
+<div class="concepts">
+
+<!-- ========================================== -->
+<!-- M-A: Applause-O-Meter -->
+<!-- ========================================== -->
+<div class="concept">
+  <div class="concept-label">M-A — Crowd Applause-O-Meter</div>
+  <div class="concept-body">
+    <div class="section header">
+      <div><div class="title">Late Night Drive</div></div>
+      <button class="delete-btn">Delete</button>
+    </div>
+    <div class="section">
+      <div class="applause-card">
+        <div class="applause-stage">
+          <div class="meter-arc">
+            <div class="meter-arc-bg"></div>
+            <div class="meter-arc-fill"></div>
+            <div class="meter-needle"></div>
+            <div class="meter-score">58%</div>
+          </div>
+          <div class="applause-crowd">
+            <div class="crowd-person-a"><div class="cpa-hands"><div class="cpa-hand-l"></div><div class="cpa-hand-r"></div></div><div class="cpa-head"></div><div class="cpa-body"></div></div>
+            <div class="crowd-person-a"><div class="cpa-hands"><div class="cpa-hand-l"></div><div class="cpa-hand-r"></div></div><div class="cpa-head"></div><div class="cpa-body" style="height:22px;width:14px"></div></div>
+            <div class="crowd-person-a"><div class="cpa-hands"><div class="cpa-hand-l"></div><div class="cpa-hand-r"></div></div><div class="cpa-head"></div><div class="cpa-body" style="height:16px;width:10px"></div></div>
+            <div class="crowd-person-a"><div class="cpa-hands"><div class="cpa-hand-l"></div><div class="cpa-hand-r"></div></div><div class="cpa-head" style="width:9px;height:9px"></div><div class="cpa-body" style="height:24px;width:14px"></div></div>
+            <div class="crowd-person-a"><div class="cpa-hands"><div class="cpa-hand-l"></div><div class="cpa-hand-r"></div></div><div class="cpa-head"></div><div class="cpa-body" style="height:20px"></div></div>
+            <div class="crowd-person-a"><div class="cpa-hands"><div class="cpa-hand-l"></div><div class="cpa-hand-r"></div></div><div class="cpa-head" style="width:7px;height:7px"></div><div class="cpa-body" style="height:16px;width:10px"></div></div>
+            <div class="crowd-person-a"><div class="cpa-hands"><div class="cpa-hand-l"></div><div class="cpa-hand-r"></div></div><div class="cpa-head"></div><div class="cpa-body" style="height:22px;width:14px"></div></div>
+          </div>
+          <div class="applause-label">Crowd Reaction</div>
+        </div>
+        <div class="applause-counter"><strong>7</strong> of <strong>20</strong> in the audience</div>
+        <div class="applause-dims">
+          <div class="applause-dim"><span class="applause-dim-emoji">🎣</span><div class="applause-dim-info"><div class="applause-dim-name">Hook</div><div class="applause-dim-bar"><div class="applause-dim-fill" style="width:72%"></div></div></div><span class="applause-dim-pct">72%</span></div>
+          <div class="applause-dim"><span class="applause-dim-emoji">🧠</span><div class="applause-dim-info"><div class="applause-dim-name">Stickiness</div><div class="applause-dim-bar"><div class="applause-dim-fill" style="width:55%"></div></div></div><span class="applause-dim-pct">55%</span></div>
+          <div class="applause-dim"><span class="applause-dim-emoji">💃</span><div class="applause-dim-info"><div class="applause-dim-name">Moveability</div><div class="applause-dim-bar"><div class="applause-dim-fill" style="width:43%"></div></div></div><span class="applause-dim-pct">43%</span></div>
+          <div class="applause-dim"><span class="applause-dim-emoji">✨</span><div class="applause-dim-info"><div class="applause-dim-name">Uniqueness</div><div class="applause-dim-bar"><div class="applause-dim-fill" style="width:61%"></div></div></div><span class="applause-dim-pct">61%</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="section audio-player"><button class="play-btn"></button><div class="audio-waveform-bars"><div class="waveform-bar played" style="height:40%"></div><div class="waveform-bar played" style="height:65%"></div><div class="waveform-bar played" style="height:85%"></div><div class="waveform-bar played" style="height:55%"></div><div class="waveform-bar played" style="height:70%"></div><div class="waveform-bar played" style="height:90%"></div><div class="waveform-bar played" style="height:60%"></div><div class="waveform-bar" style="height:75%"></div><div class="waveform-bar" style="height:50%"></div><div class="waveform-bar" style="height:80%"></div><div class="waveform-bar" style="height:45%"></div><div class="waveform-bar" style="height:70%"></div><div class="waveform-bar" style="height:55%"></div><div class="waveform-bar" style="height:85%"></div><div class="waveform-bar" style="height:40%"></div></div><span class="time">0:15</span></div>
+    <div class="section"><div class="share-card"><div class="share-title">Share Results</div><div class="share-row"><input class="share-input" value="soundcheck.app/r/abc123" readonly=""><button class="btn-sm">Copy</button></div><div class="share-actions"><button class="btn-sec">Post</button><button class="btn-sec">Message</button><button class="btn-sec">Email</button></div></div></div>
+  </div>
+</div>
+
+<!-- ========================================== -->
+<!-- M-B: Open Mic Night -->
+<!-- ========================================== -->
+<div class="concept">
+  <div class="concept-label">M-B — Open Mic Night / Stage</div>
+  <div class="concept-body">
+    <div class="section header">
+      <div><div class="title">Late Night Drive</div></div>
+      <button class="delete-btn">Delete</button>
+    </div>
+    <div class="section">
+      <div class="mic-card">
+        <div class="mic-stage">
+          <div class="spotlight-circle"></div>
+          <div class="mic-icon">🎤</div>
+          <div class="mic-score">58%</div>
+          <div class="mic-label">The Room’s Verdict</div>
+          <div class="mic-audience">
+            <div class="seat filled"></div>
+            <div class="seat filled"></div>
+            <div class="seat filled"></div>
+            <div class="seat filled"></div>
+            <div class="seat filled"></div>
+            <div class="seat filled"></div>
+            <div class="seat filled"></div>
+            <div class="seat"></div>
+            <div class="seat"></div>
+            <div class="seat"></div>
+            <div class="seat"></div>
+            <div class="seat"></div>
+            <div class="seat"></div>
+            <div class="seat"></div>
+            <div class="seat"></div>
+            <div class="seat"></div>
+            <div class="seat"></div>
+            <div class="seat"></div>
+            <div class="seat"></div>
+            <div class="seat"></div>
+          </div>
+          <div class="mic-audience-label">7 of 20 seats filled</div>
+        </div>
+        <div class="mic-counter"><strong>7</strong> of <strong>20</strong> reviews in</div>
+        <div class="mic-dims">
+          <div class="mic-dim"><span class="mic-dim-emoji">🎣</span><div class="mic-dim-info"><div class="mic-dim-name">Hook</div><div class="mic-dim-bar"><div class="mic-dim-fill" style="width:72%"></div></div></div><span class="mic-dim-pct">72%</span></div>
+          <div class="mic-dim"><span class="mic-dim-emoji">🧠</span><div class="mic-dim-info"><div class="mic-dim-name">Stickiness</div><div class="mic-dim-bar"><div class="mic-dim-fill" style="width:55%"></div></div></div><span class="mic-dim-pct">55%</span></div>
+          <div class="mic-dim"><span class="mic-dim-emoji">💃</span><div class="mic-dim-info"><div class="mic-dim-name">Moveability</div><div class="mic-dim-bar"><div class="mic-dim-fill" style="width:43%"></div></div></div><span class="mic-dim-pct">43%</span></div>
+          <div class="mic-dim"><span class="mic-dim-emoji">✨</span><div class="mic-dim-info"><div class="mic-dim-name">Uniqueness</div><div class="mic-dim-bar"><div class="mic-dim-fill" style="width:61%"></div></div></div><span class="mic-dim-pct">61%</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="section audio-player"><button class="play-btn"></button><div class="audio-waveform-bars"><div class="waveform-bar played" style="height:40%"></div><div class="waveform-bar played" style="height:65%"></div><div class="waveform-bar played" style="height:85%"></div><div class="waveform-bar played" style="height:55%"></div><div class="waveform-bar played" style="height:70%"></div><div class="waveform-bar played" style="height:90%"></div><div class="waveform-bar played" style="height:60%"></div><div class="waveform-bar" style="height:75%"></div><div class="waveform-bar" style="height:50%"></div><div class="waveform-bar" style="height:80%"></div><div class="waveform-bar" style="height:45%"></div><div class="waveform-bar" style="height:70%"></div><div class="waveform-bar" style="height:55%"></div><div class="waveform-bar" style="height:85%"></div><div class="waveform-bar" style="height:40%"></div></div><span class="time">0:15</span></div>
+    <div class="section"><div class="share-card"><div class="share-title">Share Results</div><div class="share-row"><input class="share-input" value="soundcheck.app/r/abc123" readonly=""><button class="btn-sm">Copy</button></div><div class="share-actions"><button class="btn-sec">Post</button><button class="btn-sec">Message</button><button class="btn-sec">Email</button></div></div></div>
+  </div>
+</div>
+
+<!-- ========================================== -->
+<!-- M-C: Neon Marquee / Billboard -->
+<!-- ========================================== -->
+<div class="concept">
+  <div class="concept-label">M-C — Neon Marquee / Billboard</div>
+  <div class="concept-body">
+    <div class="section header">
+      <div><div class="title">Late Night Drive</div></div>
+      <button class="delete-btn">Delete</button>
+    </div>
+    <div class="section">
+      <div class="marquee-card">
+        <div class="marquee-top">
+          <div class="bulb-row">
+            <div class="bulb"></div><div class="bulb"></div><div class="bulb"></div><div class="bulb"></div><div class="bulb"></div>
+            <div class="bulb"></div><div class="bulb"></div><div class="bulb"></div><div class="bulb"></div><div class="bulb"></div>
+          </div>
+          <div class="marquee-score">58%</div>
+          <div class="marquee-sublabel">Audience Verdict</div>
+        </div>
+        <div class="marquee-ticker">
+          <div class="marquee-ticker-inner">
+            ★ COLLECTING VOTES ★ 7 OF 20 ★ PRELIMINARY SCORE ★ COLLECTING VOTES ★ 7 OF 20 ★ PRELIMINARY SCORE ★
+          </div>
+        </div>
+        <div class="marquee-counter"><strong>7</strong> of <strong>20</strong> votes</div>
+        <div class="marquee-dims">
+          <div class="marquee-dim"><div class="marquee-dim-emoji">🎣</div><div class="marquee-dim-name">Hook</div><div class="marquee-dim-score">72%</div></div>
+          <div class="marquee-dim"><div class="marquee-dim-emoji">🧠</div><div class="marquee-dim-name">Stickiness</div><div class="marquee-dim-score">55%</div></div>
+          <div class="marquee-dim"><div class="marquee-dim-emoji">💃</div><div class="marquee-dim-name">Move</div><div class="marquee-dim-score">43%</div></div>
+          <div class="marquee-dim"><div class="marquee-dim-emoji">✨</div><div class="marquee-dim-name">Unique</div><div class="marquee-dim-score">61%</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="section audio-player"><button class="play-btn"></button><div class="audio-waveform-bars"><div class="waveform-bar played" style="height:40%"></div><div class="waveform-bar played" style="height:65%"></div><div class="waveform-bar played" style="height:85%"></div><div class="waveform-bar played" style="height:55%"></div><div class="waveform-bar played" style="height:70%"></div><div class="waveform-bar played" style="height:90%"></div><div class="waveform-bar played" style="height:60%"></div><div class="waveform-bar" style="height:75%"></div><div class="waveform-bar" style="height:50%"></div><div class="waveform-bar" style="height:80%"></div><div class="waveform-bar" style="height:45%"></div><div class="waveform-bar" style="height:70%"></div><div class="waveform-bar" style="height:55%"></div><div class="waveform-bar" style="height:85%"></div><div class="waveform-bar" style="height:40%"></div></div><span class="time">0:15</span></div>
+    <div class="section"><div class="share-card"><div class="share-title">Share Results</div><div class="share-row"><input class="share-input" value="soundcheck.app/r/abc123" readonly=""><button class="btn-sm">Copy</button></div><div class="share-actions"><button class="btn-sec">Post</button><button class="btn-sec">Message</button><button class="btn-sec">Email</button></div></div></div>
+  </div>
+</div>
+
+<!-- ========================================== -->
+<!-- M-D: Record Label Demo Package -->
+<!-- ========================================== -->
+<div class="concept">
+  <div class="concept-label">M-D — Record Label Demo Package</div>
+  <div class="concept-body">
+    <div class="section header">
+      <div><div class="title">Late Night Drive</div></div>
+      <button class="delete-btn">Delete</button>
+    </div>
+    <div class="section">
+      <div class="demo-card">
+        <div class="demo-header">
+          <div class="demo-header-row">
+            <div class="demo-brand">SoundCheck A&amp;R</div>
+            <div class="demo-status">Under Review</div>
+          </div>
+          <div class="demo-title-area">
+            <div class="demo-track-title">Late Night Drive</div>
+            <div class="demo-meta">TikTok/Reels • Submitted Jan 2026</div>
+          </div>
+        </div>
+        <div class="demo-score-section">
+          <div class="demo-score-label">Market Viability Score</div>
+          <div class="demo-score-value">58%</div>
+          <div class="demo-progress-bar"><div class="demo-progress-fill" style="width:35%"></div></div>
+          <div class="demo-progress-text">7 of 20 listener reviews</div>
+        </div>
+        <div class="demo-dims">
+          <div class="demo-dim-row">
+            <span class="demo-dim-label">🎣 Hook</span>
+            <div class="demo-dim-dots">
+              <div class="demo-dot filled"></div><div class="demo-dot filled"></div><div class="demo-dot filled"></div><div class="demo-dot filled"></div><div class="demo-dot filled"></div><div class="demo-dot filled"></div><div class="demo-dot filled"></div><div class="demo-dot"></div><div class="demo-dot"></div><div class="demo-dot"></div>
+            </div>
+            <span class="demo-dim-pct">72%</span>
+          </div>
+          <div class="demo-dim-row">
+            <span class="demo-dim-label">🧠 Sticky</span>
+            <div class="demo-dim-dots">
+              <div class="demo-dot filled"></div><div class="demo-dot filled"></div><div class="demo-dot filled"></div><div class="demo-dot filled"></div><div class="demo-dot filled"></div><div class="demo-dot filled"></div><div class="demo-dot"></div><div class="demo-dot"></div><div class="demo-dot"></div><div class="demo-dot"></div>
+            </div>
+            <span class="demo-dim-pct">55%</span>
+          </div>
+          <div class="demo-dim-row">
+            <span class="demo-dim-label">💃 Move</span>
+            <div class="demo-dim-dots">
+              <div class="demo-dot filled"></div><div class="demo-dot filled"></div><div class="demo-dot filled"></div><div class="demo-dot filled"></div><div class="demo-dot"></div><div class="demo-dot"></div><div class="demo-dot"></div><div class="demo-dot"></div><div class="demo-dot"></div><div class="demo-dot"></div>
+            </div>
+            <span class="demo-dim-pct">43%</span>
+          </div>
+          <div class="demo-dim-row">
+            <span class="demo-dim-label">✨ Unique</span>
+            <div class="demo-dim-dots">
+              <div class="demo-dot filled"></div><div class="demo-dot filled"></div><div class="demo-dot filled"></div><div class="demo-dot filled"></div><div class="demo-dot filled"></div><div class="demo-dot filled"></div><div class="demo-dot"></div><div class="demo-dot"></div><div class="demo-dot"></div><div class="demo-dot"></div>
+            </div>
+            <span class="demo-dim-pct">61%</span>
+          </div>
+        </div>
+        <div class="demo-stamp">
+          <div class="demo-stamp-text">Preliminary</div>
+        </div>
+      </div>
+    </div>
+    <div class="section audio-player"><button class="play-btn"></button><div class="audio-waveform-bars"><div class="waveform-bar played" style="height:40%"></div><div class="waveform-bar played" style="height:65%"></div><div class="waveform-bar played" style="height:85%"></div><div class="waveform-bar played" style="height:55%"></div><div class="waveform-bar played" style="height:70%"></div><div class="waveform-bar played" style="height:90%"></div><div class="waveform-bar played" style="height:60%"></div><div class="waveform-bar" style="height:75%"></div><div class="waveform-bar" style="height:50%"></div><div class="waveform-bar" style="height:80%"></div><div class="waveform-bar" style="height:45%"></div><div class="waveform-bar" style="height:70%"></div><div class="waveform-bar" style="height:55%"></div><div class="waveform-bar" style="height:85%"></div><div class="waveform-bar" style="height:40%"></div></div><span class="time">0:15</span></div>
+    <div class="section"><div class="share-card" style="border-color:#d4d4d8"><div class="share-title" style="color:#1a1a1e">Share Results</div><div class="share-row"><input class="share-input" value="soundcheck.app/r/abc123" readonly="" style="background:#e4e4e7;color:#52525b"><button class="btn-sm" style="border-color:#d4d4d8;color:#1a1a1e">Copy</button></div><div class="share-actions"><button class="btn-sec" style="background:#e4e4e7;color:#1a1a1e">Post</button><button class="btn-sec" style="background:#e4e4e7;color:#1a1a1e">Message</button><button class="btn-sec" style="background:#e4e4e7;color:#1a1a1e">Email</button></div></div></div>
+  </div>
+</div>
+
+<!-- ========================================== -->
+<!-- M-E: Crowd Hands Raised Heatmap -->
+<!-- ========================================== -->
+<div class="concept">
+  <div class="concept-label">M-E — Hands Raised + Heatmap Dims</div>
+  <div class="concept-body">
+    <div class="section header">
+      <div><div class="title">Late Night Drive</div></div>
+      <button class="delete-btn">Delete</button>
+    </div>
+    <div class="section">
+      <div class="hands-card">
+        <div class="hands-stage">
+          <div class="hands-score-area">
+            <div class="hands-score">58%</div>
+            <div class="hands-label">Crowd Energy</div>
+          </div>
+          <div class="hands-crowd">
+            <span class="raised-hand">🤚</span>
+            <span class="raised-hand">✋</span>
+            <span class="raised-hand">👋</span>
+            <span class="raised-hand">🤚</span>
+            <span class="raised-hand">✋</span>
+            <span class="raised-hand">👋</span>
+            <span class="raised-hand">🤚</span>
+            <span class="raised-hand">✋</span>
+            <span class="raised-hand">👋</span>
+          </div>
+        </div>
+        <div class="hands-counter"><strong>7</strong> of <strong>20</strong> hands up</div>
+        <div class="hands-dims">
+          <div class="hands-dim hot"><div class="hands-dim-emoji">🎣</div><div class="hands-dim-name">Hook</div><div class="hands-dim-pct">72%</div></div>
+          <div class="hands-dim warm"><div class="hands-dim-emoji">🧠</div><div class="hands-dim-name">Stickiness</div><div class="hands-dim-pct">55%</div></div>
+          <div class="hands-dim cool"><div class="hands-dim-emoji">💃</div><div class="hands-dim-name">Moveability</div><div class="hands-dim-pct">43%</div></div>
+          <div class="hands-dim warm"><div class="hands-dim-emoji">✨</div><div class="hands-dim-name">Uniqueness</div><div class="hands-dim-pct">61%</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="section audio-player"><button class="play-btn"></button><div class="audio-waveform-bars"><div class="waveform-bar played" style="height:40%"></div><div class="waveform-bar played" style="height:65%"></div><div class="waveform-bar played" style="height:85%"></div><div class="waveform-bar played" style="height:55%"></div><div class="waveform-bar played" style="height:70%"></div><div class="waveform-bar played" style="height:90%"></div><div class="waveform-bar played" style="height:60%"></div><div class="waveform-bar" style="height:75%"></div><div class="waveform-bar" style="height:50%"></div><div class="waveform-bar" style="height:80%"></div><div class="waveform-bar" style="height:45%"></div><div class="waveform-bar" style="height:70%"></div><div class="waveform-bar" style="height:55%"></div><div class="waveform-bar" style="height:85%"></div><div class="waveform-bar" style="height:40%"></div></div><span class="time">0:15</span></div>
+    <div class="section"><div class="share-card"><div class="share-title">Share Results</div><div class="share-row"><input class="share-input" value="soundcheck.app/r/abc123" readonly=""><button class="btn-sm">Copy</button></div><div class="share-actions"><button class="btn-sec">Post</button><button class="btn-sec">Message</button><button class="btn-sec">Email</button></div></div></div>
+  </div>
+</div>
+
+<!-- ========================================== -->
+<!-- M-F: Vinyl Sleeve / Album Review -->
+<!-- ========================================== -->
+<div class="concept">
+  <div class="concept-label">M-F — Vinyl Sleeve / Album Review</div>
+  <div class="concept-body">
+    <div class="section header">
+      <div><div class="title">Late Night Drive</div></div>
+      <button class="delete-btn">Delete</button>
+    </div>
+    <div class="section">
+      <div class="vinyl-card">
+        <div class="vinyl-top">
+          <div class="vinyl-disc"></div>
+          <div class="vinyl-info">
+            <div class="vinyl-track">Late Night Drive</div>
+            <div class="vinyl-artist">Your Track</div>
+            <div class="vinyl-context">TikTok/Reels</div>
+          </div>
+        </div>
+        <div class="vinyl-score-section">
+          <div class="vinyl-rating-stars">★★★☆☆</div>
+          <div class="vinyl-score-big">58%</div>
+          <div class="vinyl-score-label">Preliminary Score</div>
+          <div class="vinyl-progress">
+            <div class="vinyl-progress-bar"><div class="vinyl-progress-fill" style="width:35%"></div></div>
+            <span class="vinyl-progress-text">7/20 reviews</span>
+          </div>
+        </div>
+        <div class="vinyl-dims">
+          <div class="vinyl-dim"><span class="vinyl-dim-emoji">🎣</span><span class="vinyl-dim-name">Hook</span><div class="vinyl-dim-bar"><div class="vinyl-dim-fill c1" style="width:72%"></div></div><span class="vinyl-dim-pct">72%</span></div>
+          <div class="vinyl-dim"><span class="vinyl-dim-emoji">🧠</span><span class="vinyl-dim-name">Stickiness</span><div class="vinyl-dim-bar"><div class="vinyl-dim-fill c2" style="width:55%"></div></div><span class="vinyl-dim-pct">55%</span></div>
+          <div class="vinyl-dim"><span class="vinyl-dim-emoji">💃</span><span class="vinyl-dim-name">Moveability</span><div class="vinyl-dim-bar"><div class="vinyl-dim-fill c3" style="width:43%"></div></div><span class="vinyl-dim-pct">43%</span></div>
+          <div class="vinyl-dim"><span class="vinyl-dim-emoji">✨</span><span class="vinyl-dim-name">Uniqueness</span><div class="vinyl-dim-bar"><div class="vinyl-dim-fill c4" style="width:61%"></div></div><span class="vinyl-dim-pct">61%</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="section audio-player"><button class="play-btn"></button><div class="audio-waveform-bars"><div class="waveform-bar played" style="height:40%"></div><div class="waveform-bar played" style="height:65%"></div><div class="waveform-bar played" style="height:85%"></div><div class="waveform-bar played" style="height:55%"></div><div class="waveform-bar played" style="height:70%"></div><div class="waveform-bar played" style="height:90%"></div><div class="waveform-bar played" style="height:60%"></div><div class="waveform-bar" style="height:75%"></div><div class="waveform-bar" style="height:50%"></div><div class="waveform-bar" style="height:80%"></div><div class="waveform-bar" style="height:45%"></div><div class="waveform-bar" style="height:70%"></div><div class="waveform-bar" style="height:55%"></div><div class="waveform-bar" style="height:85%"></div><div class="waveform-bar" style="height:40%"></div></div><span class="time">0:15</span></div>
+    <div class="section"><div class="share-card"><div class="share-title">Share Results</div><div class="share-row"><input class="share-input" value="soundcheck.app/r/abc123" readonly=""><button class="btn-sm">Copy</button></div><div class="share-actions"><button class="btn-sec">Post</button><button class="btn-sec">Message</button><button class="btn-sec">Email</button></div></div></div>
+  </div>
+</div>
+
+<!-- ========================================== -->
+<!-- M-G: Concert Ticket Stub — Torn Edge -->
+<!-- ========================================== -->
+<div class="concept">
+  <div class="concept-label">M-G — Concert Ticket Stub (Torn Edge)</div>
+  <div class="concept-body">
+    <div class="section header">
+      <div><div class="title">Late Night Drive</div></div>
+      <button class="delete-btn">Delete</button>
+    </div>
+    <div class="section">
+      <div class="stub-card">
+        <div class="stub-top">
+          <div class="stub-top-row">
+            <div>
+              <div class="stub-event-name">SoundCheck Live</div>
+              <div class="stub-track-title">Late Night Drive</div>
+            </div>
+            <div class="stub-admit">Collecting</div>
+          </div>
+        </div>
+        <div class="stub-body">
+          <div class="stub-score-area">
+            <div class="stub-score">58%</div>
+            <div class="stub-score-label">Preliminary Score</div>
+            <div class="stub-votes">
+              <div class="stub-vote-dot filled"></div>
+              <div class="stub-vote-dot filled"></div>
+              <div class="stub-vote-dot filled"></div>
+              <div class="stub-vote-dot filled"></div>
+              <div class="stub-vote-dot filled"></div>
+              <div class="stub-vote-dot filled"></div>
+              <div class="stub-vote-dot filled"></div>
+              <div class="stub-vote-dot empty"></div>
+              <div class="stub-vote-dot empty"></div>
+              <div class="stub-vote-dot empty"></div>
+              <div class="stub-vote-dot empty"></div>
+              <div class="stub-vote-dot empty"></div>
+              <div class="stub-vote-dot empty"></div>
+              <div class="stub-vote-dot empty"></div>
+              <div class="stub-vote-dot empty"></div>
+              <div class="stub-vote-dot empty"></div>
+              <div class="stub-vote-dot empty"></div>
+              <div class="stub-vote-dot empty"></div>
+              <div class="stub-vote-dot empty"></div>
+              <div class="stub-vote-dot empty"></div>
+              <span class="stub-vote-text">7/20</span>
+            </div>
+          </div>
+          <div class="stub-dims">
+            <div class="stub-dim"><span class="stub-dim-emoji">🎣</span><div class="stub-dim-info"><div class="stub-dim-name">Hook</div><div class="stub-dim-bar"><div class="stub-dim-fill g1" style="width:72%"></div></div></div><span class="stub-dim-pct">72%</span></div>
+            <div class="stub-dim"><span class="stub-dim-emoji">🧠</span><div class="stub-dim-info"><div class="stub-dim-name">Stickiness</div><div class="stub-dim-bar"><div class="stub-dim-fill g2" style="width:55%"></div></div></div><span class="stub-dim-pct">55%</span></div>
+            <div class="stub-dim"><span class="stub-dim-emoji">💃</span><div class="stub-dim-info"><div class="stub-dim-name">Moveability</div><div class="stub-dim-bar"><div class="stub-dim-fill g3" style="width:43%"></div></div></div><span class="stub-dim-pct">43%</span></div>
+            <div class="stub-dim"><span class="stub-dim-emoji">✨</span><div class="stub-dim-info"><div class="stub-dim-name">Uniqueness</div><div class="stub-dim-bar"><div class="stub-dim-fill g4" style="width:61%"></div></div></div><span class="stub-dim-pct">61%</span></div>
+          </div>
+          <div class="stub-serial">SC-2026-LND-00482</div>
+        </div>
+      </div>
+    </div>
+    <div class="section audio-player"><button class="play-btn"></button><div class="audio-waveform-bars"><div class="waveform-bar played" style="height:40%"></div><div class="waveform-bar played" style="height:65%"></div><div class="waveform-bar played" style="height:85%"></div><div class="waveform-bar played" style="height:55%"></div><div class="waveform-bar played" style="height:70%"></div><div class="waveform-bar played" style="height:90%"></div><div class="waveform-bar played" style="height:60%"></div><div class="waveform-bar" style="height:75%"></div><div class="waveform-bar" style="height:50%"></div><div class="waveform-bar" style="height:80%"></div><div class="waveform-bar" style="height:45%"></div><div class="waveform-bar" style="height:70%"></div><div class="waveform-bar" style="height:55%"></div><div class="waveform-bar" style="height:85%"></div><div class="waveform-bar" style="height:40%"></div></div><span class="time">0:15</span></div>
+    <div class="section"><div class="share-card"><div class="share-title">Share Results</div><div class="share-row"><input class="share-input" value="soundcheck.app/r/abc123" readonly=""><button class="btn-sm">Copy</button></div><div class="share-actions"><button class="btn-sec">Post</button><button class="btn-sec">Message</button><button class="btn-sec">Email</button></div></div></div>
+  </div>
+</div>
+
+<!-- ========================================== -->
+<!-- M-H: Streaming Stats Card -->
+<!-- ========================================== -->
+<div class="concept">
+  <div class="concept-label">M-H — Streaming Stats Card</div>
+  <div class="concept-body">
+    <div class="section header">
+      <div><div class="title">Late Night Drive</div></div>
+      <button class="delete-btn">Delete</button>
+    </div>
+    <div class="section">
+      <div class="stream-card">
+        <div class="stream-cover">
+          <div class="stream-cover-fade"></div>
+          <div class="stream-eq">
+            <div class="stream-eq-bar" style="height:12px"></div>
+            <div class="stream-eq-bar" style="height:8px"></div>
+            <div class="stream-eq-bar" style="height:16px"></div>
+            <div class="stream-eq-bar" style="height:10px"></div>
+          </div>
+        </div>
+        <div class="stream-meta">
+          <div class="stream-track-title">Late Night Drive</div>
+          <div class="stream-context">TikTok/Reels • Collecting votes</div>
+        </div>
+        <div class="stream-stats">
+          <div class="stream-stat"><div class="stream-stat-value primary">58%</div><div class="stream-stat-label">Score</div></div>
+          <div class="stream-stat"><div class="stream-stat-value">7</div><div class="stream-stat-label">Votes</div></div>
+          <div class="stream-stat"><div class="stream-stat-value">20</div><div class="stream-stat-label">Goal</div></div>
+        </div>
+        <div class="stream-dims">
+          <div class="stream-dim"><span class="stream-dim-emoji">🎣</span><div class="stream-dim-info"><div class="stream-dim-name">Hook</div><div class="stream-dim-bar-wrap"><div class="stream-dim-bar"><div class="stream-dim-fill" style="width:72%"></div></div><span class="stream-dim-pct">72%</span></div></div></div>
+          <div class="stream-dim"><span class="stream-dim-emoji">🧠</span><div class="stream-dim-info"><div class="stream-dim-name">Stickiness</div><div class="stream-dim-bar-wrap"><div class="stream-dim-bar"><div class="stream-dim-fill" style="width:55%"></div></div><span class="stream-dim-pct">55%</span></div></div></div>
+          <div class="stream-dim"><span class="stream-dim-emoji">💃</span><div class="stream-dim-info"><div class="stream-dim-name">Moveability</div><div class="stream-dim-bar-wrap"><div class="stream-dim-bar"><div class="stream-dim-fill" style="width:43%"></div></div><span class="stream-dim-pct">43%</span></div></div></div>
+          <div class="stream-dim"><span class="stream-dim-emoji">✨</span><div class="stream-dim-info"><div class="stream-dim-name">Uniqueness</div><div class="stream-dim-bar-wrap"><div class="stream-dim-bar"><div class="stream-dim-fill" style="width:61%"></div></div><span class="stream-dim-pct">61%</span></div></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="section audio-player"><button class="play-btn"></button><div class="audio-waveform-bars"><div class="waveform-bar played" style="height:40%"></div><div class="waveform-bar played" style="height:65%"></div><div class="waveform-bar played" style="height:85%"></div><div class="waveform-bar played" style="height:55%"></div><div class="waveform-bar played" style="height:70%"></div><div class="waveform-bar played" style="height:90%"></div><div class="waveform-bar played" style="height:60%"></div><div class="waveform-bar" style="height:75%"></div><div class="waveform-bar" style="height:50%"></div><div class="waveform-bar" style="height:80%"></div><div class="waveform-bar" style="height:45%"></div><div class="waveform-bar" style="height:70%"></div><div class="waveform-bar" style="height:55%"></div><div class="waveform-bar" style="height:85%"></div><div class="waveform-bar" style="height:40%"></div></div><span class="time">0:15</span></div>
+    <div class="section"><div class="share-card"><div class="share-title">Share Results</div><div class="share-row"><input class="share-input" value="soundcheck.app/r/abc123" readonly=""><button class="btn-sm">Copy</button></div><div class="share-actions"><button class="btn-sec">Post</button><button class="btn-sec">Message</button><button class="btn-sec">Email</button></div></div></div>
+  </div>
+</div>
+
+</div>
+
+
+</body></html>

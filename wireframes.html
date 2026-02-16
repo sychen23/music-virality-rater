@@ -1,0 +1,2259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Soundcheck Results Page — Design Concepts</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --primary: oklch(0.541 0.281 293.009);
+    --primary-light: oklch(0.75 0.15 293);
+    --primary-faint: oklch(0.95 0.03 293);
+    --bg: #fff;
+    --fg: #111;
+    --muted: #888;
+    --muted-bg: #f5f5f5;
+    --border: #e5e5e5;
+    --green: #22c55e;
+    --yellow: #eab308;
+    --chart2: oklch(0.606 0.25 292.717);
+    --chart4: oklch(0.491 0.27 292.581);
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #f0f0f0;
+    color: var(--fg);
+    line-height: 1.5;
+  }
+
+  /* Navigation */
+  .nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(255,255,255,0.9);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .nav h1 { font-size: 16px; font-weight: 700; white-space: nowrap; }
+  .nav .tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+  .nav .tab {
+    padding: 5px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 2px solid var(--border);
+    background: white;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .nav .tab:hover { border-color: var(--primary); color: var(--primary); }
+  .nav .tab.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+  /* Concept containers */
+  .concept {
+    display: none;
+    max-width: 480px;
+    margin: 32px auto;
+    padding-bottom: 48px;
+  }
+  .concept.active { display: block; }
+
+  .concept-label {
+    text-align: center;
+    margin-bottom: 24px;
+    padding: 16px;
+  }
+  .concept-label h2 { font-size: 22px; font-weight: 800; margin-bottom: 4px; }
+  .concept-label p { color: var(--muted); font-size: 14px; }
+
+  /* Shared mockup frame */
+  .phone-frame {
+    background: var(--bg);
+    border-radius: 24px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.06);
+    overflow: hidden;
+  }
+
+  /* Shared player elements */
+  .shared-play-btn {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    background: var(--primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .shared-play-btn::after {
+    content: '';
+    width: 0; height: 0;
+    border-left: 10px solid white;
+    border-top: 6px solid transparent;
+    border-bottom: 6px solid transparent;
+    margin-left: 2px;
+  }
+  .shared-waveform {
+    flex: 1;
+    height: 32px;
+    display: flex;
+    align-items: end;
+    gap: 2px;
+  }
+  .shared-waveform .bar {
+    flex: 1;
+    border-radius: 2px 2px 0 0;
+    background: var(--primary);
+    opacity: 0.3;
+  }
+  .shared-waveform .bar.filled { opacity: 1; }
+  .shared-time { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+
+  .spacer { height: 32px; }
+
+  /* State toggle */
+  .state-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: 12px;
+    padding-left: 12px;
+    border-left: 1px solid var(--border);
+  }
+  .state-toggle label { font-size: 12px; font-weight: 600; color: var(--muted); cursor: pointer; }
+  .state-toggle label.active-label { color: var(--fg); }
+  .toggle-track {
+    width: 36px; height: 20px;
+    background: var(--muted-bg);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    position: relative;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .toggle-track.on { background: var(--primary); border-color: var(--primary); }
+  .toggle-knob {
+    width: 14px; height: 14px;
+    background: white;
+    border-radius: 50%;
+    position: absolute;
+    top: 2px; left: 2px;
+    transition: left 0.2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }
+  .toggle-track.on .toggle-knob { left: 18px; }
+
+  /* State visibility */
+  .when-complete { display: block; }
+  .when-collecting { display: none; }
+  body.collecting .when-complete { display: none; }
+  body.collecting .when-collecting { display: block; }
+  .when-complete-flex { display: flex; }
+  .when-collecting-flex { display: none; }
+  body.collecting .when-complete-flex { display: none; }
+  body.collecting .when-collecting-flex { display: flex; }
+
+  /* Collecting-specific styles */
+  .pulse-dot {
+    position: relative;
+    display: inline-flex;
+    width: 8px; height: 8px;
+  }
+  .pulse-dot::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: var(--green);
+    animation: pulse-ring 1.5s ease infinite;
+  }
+  .pulse-dot::after {
+    content: '';
+    position: relative;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+  }
+  @keyframes pulse-ring {
+    0% { transform: scale(1); opacity: 0.7; }
+    100% { transform: scale(2.2); opacity: 0; }
+  }
+
+  .collecting-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  /* Progress bar shared */
+  .vote-progress { margin: 0 24px 16px; }
+  .vote-progress-bar { height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden; }
+  .vote-progress-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--primary), var(--primary-light)); }
+  .vote-progress-text { font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 4px; }
+  .vote-progress-light .vote-progress-bar { background: var(--muted-bg); }
+  .vote-progress-light .vote-progress-text { color: var(--muted); }
+
+  /* ============================================
+     CONCEPT A: Vinyl Record + Equalizer
+     ============================================ */
+  .a-header {
+    position: relative;
+    background: linear-gradient(135deg, oklch(0.2 0.05 293), oklch(0.35 0.15 293) 60%, oklch(0.45 0.2 293));
+    padding: 32px 24px 48px;
+    color: white;
+    text-align: center;
+    overflow: hidden;
+  }
+  .a-header::before {
+    content: '';
+    position: absolute;
+    top: -60px; right: -60px;
+    width: 200px; height: 200px;
+    border-radius: 50%;
+    border: 30px solid rgba(255,255,255,0.05);
+  }
+  .a-title { font-size: 20px; font-weight: 700; position: relative; }
+  .a-badge {
+    display: inline-block;
+    margin-top: 8px;
+    background: rgba(255,255,255,0.15);
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255,255,255,0.2);
+    padding: 2px 12px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .a-vinyl {
+    margin: -32px auto 0;
+    width: 180px; height: 180px;
+  }
+  .a-vinyl-disc {
+    width: 180px; height: 180px;
+    border-radius: 50%;
+    background: conic-gradient(from 0deg, oklch(0.25 0.02 293) 0%, oklch(0.18 0.01 293) 25%, oklch(0.25 0.02 293) 50%, oklch(0.18 0.01 293) 75%, oklch(0.25 0.02 293) 100%);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    animation: spin 20s linear infinite;
+    position: relative;
+  }
+  .a-vinyl-disc::before { content: ''; position: absolute; inset: 15px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.06); }
+  .a-vinyl-disc::after { content: ''; position: absolute; inset: 35px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.04); }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .a-vinyl-center {
+    width: 72px; height: 72px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary), var(--primary-light));
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    z-index: 2;
+    animation: spin 20s linear infinite reverse;
+  }
+  .a-vinyl-score { font-size: 22px; font-weight: 800; color: white; line-height: 1; }
+  .a-vinyl-label { font-size: 8px; font-weight: 600; color: rgba(255,255,255,0.7); text-transform: uppercase; letter-spacing: 1px; }
+  .a-percentile { text-align: center; margin-top: 12px; font-size: 13px; color: var(--muted); font-weight: 500; }
+
+  .a-player {
+    margin: 24px 24px 0;
+    padding: 16px;
+    background: var(--muted-bg);
+    border-radius: 16px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .a-eq-section { padding: 24px; }
+  .a-eq-label { font-size: 14px; font-weight: 700; margin-bottom: 16px; }
+  .a-eq-grid { display: flex; justify-content: space-around; align-items: flex-end; height: 140px; padding: 0 8px; gap: 8px; }
+  .a-eq-item { display: flex; flex-direction: column; align-items: center; gap: 8px; flex: 1; }
+  .a-eq-bar-wrap { width: 100%; height: 100px; background: var(--muted-bg); border-radius: 8px; position: relative; overflow: hidden; display: flex; align-items: flex-end; }
+  .a-eq-bar-fill { width: 100%; border-radius: 8px; }
+  .a-eq-pct { position: absolute; top: 8px; width: 100%; text-align: center; font-size: 13px; font-weight: 800; color: white; text-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+  .a-eq-name { font-size: 10px; font-weight: 600; color: var(--muted); text-align: center; }
+  .a-eq-emoji { font-size: 18px; }
+
+  /* ============================================
+     CONCEPT B: Radar Chart + Clean Cards
+     ============================================ */
+  .b-header { padding: 28px 24px 20px; }
+  .b-title { font-size: 22px; font-weight: 800; }
+  .b-meta { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+  .b-badge-complete { background: oklch(0.95 0.03 293); color: var(--primary); font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 6px; }
+
+  .b-score-card {
+    margin: 0 24px;
+    background: linear-gradient(135deg, oklch(0.97 0.02 293), oklch(0.95 0.04 293));
+    border-radius: 20px; padding: 28px; text-align: center;
+    border: 1px solid oklch(0.9 0.05 293);
+  }
+  .b-score-ring { width: 140px; height: 140px; margin: 0 auto 12px; position: relative; }
+  .b-score-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .b-score-ring circle { fill: none; stroke-width: 8; stroke-linecap: round; }
+  .b-score-ring .bg-circle { stroke: oklch(0.88 0.06 293); }
+  .b-score-ring .fg-circle { stroke: var(--primary); stroke-dasharray: 408; }
+  .b-score-value { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .b-score-num { font-size: 36px; font-weight: 800; color: var(--primary); line-height: 1; }
+  .b-score-unit { font-size: 13px; color: var(--muted); font-weight: 600; margin-top: 2px; }
+  .b-percentile { font-size: 13px; color: var(--muted); font-weight: 500; }
+
+  .b-radar-section { padding: 24px; }
+  .b-radar-title { font-size: 14px; font-weight: 700; margin-bottom: 16px; }
+  .b-radar-wrap { display: flex; align-items: center; justify-content: center; padding: 8px 0; }
+  .b-radar-svg { width: 240px; height: 240px; }
+  .b-radar-labels { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
+  .b-radar-label-item { display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: var(--muted-bg); border-radius: 12px; }
+  .b-radar-emoji { font-size: 16px; }
+  .b-radar-label-text { font-size: 12px; font-weight: 600; flex: 1; }
+  .b-radar-label-pct { font-size: 14px; font-weight: 800; color: var(--primary); }
+
+  .b-player {
+    margin: 0 24px 24px;
+    padding: 14px 16px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    display: flex; align-items: center; gap: 12px;
+  }
+
+  /* ============================================
+     CONCEPT C: Neon / Dark Frequency
+     ============================================ */
+  .c-wrap { background: oklch(0.13 0.02 280); color: white; border-radius: 24px; overflow: hidden; }
+  .c-header { padding: 28px 24px 16px; position: relative; }
+  .c-header::after { content: ''; position: absolute; bottom: 0; left: 24px; right: 24px; height: 1px; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent); }
+  .c-title { font-size: 20px; font-weight: 700; }
+  .c-badge { display: inline-block; margin-top: 6px; padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; background: rgba(139, 92, 246, 0.2); color: oklch(0.75 0.2 293); border: 1px solid rgba(139, 92, 246, 0.3); }
+
+  .c-score-section { padding: 32px 24px; text-align: center; position: relative; }
+  .c-score-glow { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 200px; height: 200px; border-radius: 50%; background: radial-gradient(circle, oklch(0.5 0.25 293 / 0.3), transparent 70%); filter: blur(30px); }
+  .c-score-num { font-size: 64px; font-weight: 900; position: relative; background: linear-gradient(180deg, oklch(0.75 0.2 293), oklch(0.55 0.28 293)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; line-height: 1; }
+  .c-score-label { font-size: 12px; color: rgba(255,255,255,0.5); font-weight: 600; text-transform: uppercase; letter-spacing: 2px; margin-top: 4px; position: relative; }
+  .c-percentile { font-size: 13px; color: rgba(255,255,255,0.4); margin-top: 8px; position: relative; }
+
+  .c-spectrum { padding: 0 24px 24px; }
+  .c-spectrum-title { font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; }
+  .c-spectrum-item { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .c-spectrum-info { width: 110px; flex-shrink: 0; }
+  .c-spectrum-name { font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.8); display: flex; align-items: center; gap: 6px; }
+  .c-spectrum-pct { font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 2px; }
+  .c-spectrum-bar-wrap { flex: 1; height: 28px; background: rgba(255,255,255,0.05); border-radius: 8px; overflow: hidden; }
+  .c-spectrum-bar-fill { height: 100%; border-radius: 8px; position: relative; }
+  .c-spectrum-bar-fill::after { content: ''; position: absolute; inset: 0; border-radius: 8px; background: linear-gradient(90deg, transparent 70%, rgba(255,255,255,0.15)); }
+  .c-spectrum-bar-fill .freq-ticks { position: absolute; inset: 4px; display: flex; gap: 3px; align-items: end; opacity: 0.4; }
+  .c-spectrum-bar-fill .freq-ticks span { flex: 1; background: rgba(255,255,255,0.5); border-radius: 1px; }
+
+  .c-player { margin: 0 24px 24px; padding: 14px 16px; background: rgba(255,255,255,0.05); border-radius: 14px; border: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; gap: 12px; }
+  .c-play-btn { width: 36px; height: 36px; border-radius: 50%; background: var(--primary); display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 0 20px oklch(0.5 0.25 293 / 0.4); }
+  .c-play-btn::after { content: ''; width: 0; height: 0; border-left: 9px solid white; border-top: 5px solid transparent; border-bottom: 5px solid transparent; margin-left: 2px; }
+  .c-waveform { flex: 1; height: 28px; display: flex; align-items: center; gap: 2px; }
+  .c-waveform .bar { flex: 1; border-radius: 2px; background: oklch(0.6 0.2 293); opacity: 0.3; }
+  .c-waveform .bar.filled { opacity: 1; box-shadow: 0 0 4px oklch(0.5 0.25 293 / 0.5); }
+  .c-time { font-size: 11px; color: rgba(255,255,255,0.4); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+
+  .c-insight { margin: 0 24px 12px; padding: 14px 16px; border-radius: 12px; border-left: 3px solid; }
+  .c-insight.success { border-color: var(--green); background: rgba(34,197,94,0.08); }
+  .c-insight.warning { border-color: var(--yellow); background: rgba(234,179,8,0.08); }
+  .c-insight.default { border-color: oklch(0.6 0.2 293); background: rgba(139,92,246,0.08); }
+  .c-insight-title { font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.9); }
+  .c-insight-desc { font-size: 11px; color: rgba(255,255,255,0.45); margin-top: 3px; }
+  .c-section-title { padding: 20px 24px 12px; font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 1px; }
+
+  .c-share { margin: 12px 24px 24px; padding: 16px; border-radius: 14px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); }
+  .c-share-title { font-size: 12px; font-weight: 700; color: rgba(255,255,255,0.5); margin-bottom: 10px; }
+  .c-share-btns { display: flex; gap: 8px; }
+  .c-share-btn { flex: 1; padding: 8px; border-radius: 8px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.7); font-size: 12px; font-weight: 600; text-align: center; cursor: pointer; }
+
+  /* ============================================
+     CONCEPT D: Album Art Card
+     ============================================ */
+  .d-hero-bg {
+    height: 200px;
+    background: linear-gradient(160deg, oklch(0.35 0.18 293), oklch(0.55 0.25 280), oklch(0.4 0.2 310));
+    position: relative;
+  }
+  .d-hero-bg::after { content: ''; position: absolute; inset: 0; background: url("data:image/svg+xml,%3Csvg width='400' height='200' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23fff' stop-opacity='0.03'/%3E%3Cstop offset='1' stop-color='%23fff' stop-opacity='0'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ccircle cx='320' cy='80' r='120' fill='url(%23g)'/%3E%3Ccircle cx='80' cy='160' r='80' fill='url(%23g)'/%3E%3C/svg%3E") center/cover; }
+
+  .d-score-float {
+    margin: -60px 24px 0;
+    background: white; border-radius: 20px; padding: 24px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+    position: relative; z-index: 2;
+  }
+  .d-score-top { display: flex; align-items: center; gap: 16px; }
+  .d-score-circle { width: 80px; height: 80px; border-radius: 50%; background: conic-gradient(var(--primary) 0% 78%, var(--muted-bg) 78% 100%); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .d-score-circle-inner { width: 64px; height: 64px; border-radius: 50%; background: white; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .d-score-circle-num { font-size: 22px; font-weight: 800; color: var(--primary); line-height: 1; }
+  .d-score-circle-pct { font-size: 9px; color: var(--muted); font-weight: 600; }
+  .d-score-info { flex: 1; }
+  .d-score-title { font-size: 18px; font-weight: 800; }
+  .d-score-subtitle { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .d-score-percentile { display: inline-block; margin-top: 6px; background: oklch(0.95 0.03 293); color: var(--primary); font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 6px; }
+
+  .d-dims { padding: 24px; }
+  .d-dims-title { font-size: 14px; font-weight: 700; margin-bottom: 16px; }
+  .d-dim-row { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+  .d-dim-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+  .d-dim-content { flex: 1; }
+  .d-dim-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+  .d-dim-name { font-size: 13px; font-weight: 600; }
+  .d-dim-pct { font-size: 13px; font-weight: 800; }
+  .d-dim-bar { height: 8px; background: var(--muted-bg); border-radius: 4px; overflow: hidden; }
+  .d-dim-bar-fill { height: 100%; border-radius: 4px; }
+
+  .d-player { margin: 0 24px 24px; padding: 16px; border-radius: 16px; background: linear-gradient(135deg, oklch(0.97 0.02 293), oklch(0.94 0.04 280)); border: 1px solid oklch(0.9 0.06 293); display: flex; align-items: center; gap: 12px; }
+
+  .d-insights { padding: 0 24px 24px; }
+  .d-insights-title { font-size: 14px; font-weight: 700; margin-bottom: 12px; }
+  .d-insight { padding: 14px; border-radius: 12px; margin-bottom: 10px; display: flex; gap: 12px; align-items: flex-start; }
+  .d-insight.success { background: oklch(0.97 0.03 145); }
+  .d-insight.warning { background: oklch(0.97 0.04 85); }
+  .d-insight.default { background: oklch(0.96 0.03 293); }
+  .d-insight-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+  .d-insight.success .d-insight-icon { background: oklch(0.92 0.06 145); }
+  .d-insight.warning .d-insight-icon { background: oklch(0.92 0.07 85); }
+  .d-insight.default .d-insight-icon { background: oklch(0.92 0.06 293); }
+  .d-insight-title { font-size: 13px; font-weight: 700; }
+  .d-insight-desc { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  .d-share { margin: 0 24px 24px; padding: 16px; border-radius: 14px; border: 1px solid var(--border); }
+  .d-share-title { font-size: 12px; font-weight: 700; color: var(--muted); margin-bottom: 10px; }
+  .d-share-btns { display: flex; gap: 8px; }
+  .d-share-btn { flex: 1; padding: 8px; border-radius: 8px; background: var(--muted-bg); border: 1px solid var(--border); font-size: 12px; font-weight: 600; text-align: center; cursor: pointer; }
+
+  /* ============================================
+     CONCEPT E: Concert Crowd / Stage
+     ============================================ */
+  .e-wrap { background: oklch(0.1 0.015 270); color: white; border-radius: 24px; overflow: hidden; position: relative; }
+
+  .e-stage {
+    position: relative;
+    padding: 32px 24px 80px;
+    text-align: center;
+    overflow: hidden;
+  }
+  /* Stage lights */
+  .e-stage::before {
+    content: '';
+    position: absolute;
+    top: -80px; left: 50%;
+    transform: translateX(-50%);
+    width: 300px; height: 300px;
+    background: radial-gradient(ellipse at center, oklch(0.5 0.25 293 / 0.35) 0%, oklch(0.4 0.2 320 / 0.15) 40%, transparent 70%);
+    pointer-events: none;
+  }
+  /* Second light beam */
+  .e-stage::after {
+    content: '';
+    position: absolute;
+    top: -40px; right: -20px;
+    width: 200px; height: 250px;
+    background: radial-gradient(ellipse at top right, oklch(0.45 0.18 270 / 0.2) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  .e-title { font-size: 22px; font-weight: 800; position: relative; z-index: 2; }
+  .e-badge {
+    display: inline-block;
+    margin-top: 8px;
+    padding: 3px 12px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.15);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    position: relative; z-index: 2;
+  }
+
+  /* Score as "stage screen" */
+  .e-screen {
+    margin: -48px 24px 0;
+    background: linear-gradient(180deg, oklch(0.16 0.025 280), oklch(0.12 0.015 270));
+    border-radius: 20px;
+    padding: 32px 24px;
+    text-align: center;
+    position: relative;
+    z-index: 2;
+    border: 1px solid rgba(255,255,255,0.06);
+    box-shadow: 0 0 60px oklch(0.5 0.2 293 / 0.15), inset 0 1px 0 rgba(255,255,255,0.05);
+  }
+  .e-screen-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    color: rgba(255,255,255,0.35);
+    margin-bottom: 8px;
+  }
+  .e-screen-score {
+    font-size: 72px;
+    font-weight: 900;
+    line-height: 1;
+    background: linear-gradient(180deg, #fff 0%, oklch(0.8 0.15 293) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    filter: drop-shadow(0 0 20px oklch(0.6 0.25 293 / 0.5));
+  }
+  .e-screen-percentile {
+    font-size: 13px;
+    color: rgba(255,255,255,0.4);
+    margin-top: 6px;
+    font-weight: 500;
+  }
+
+  /* Crowd silhouette */
+  .e-crowd {
+    position: relative;
+    height: 60px;
+    margin: 0 24px;
+    overflow: hidden;
+  }
+  .e-crowd svg { width: 100%; height: 100%; }
+
+  /* Crowd cheering meter */
+  .e-crowd-meter {
+    margin: 16px 24px 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .e-crowd-meter-label { font-size: 11px; color: rgba(255,255,255,0.5); font-weight: 600; white-space: nowrap; }
+  .e-crowd-meter-bar {
+    flex: 1; height: 6px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .e-crowd-meter-fill {
+    height: 100%;
+    border-radius: 3px;
+    background: linear-gradient(90deg, oklch(0.55 0.2 145), oklch(0.65 0.25 120));
+    box-shadow: 0 0 8px oklch(0.5 0.2 145 / 0.4);
+  }
+  .e-crowd-meter-pct { font-size: 13px; font-weight: 800; color: oklch(0.7 0.2 145); }
+
+  /* Dimension "stage lights" cards */
+  .e-dims { padding: 20px 24px; }
+  .e-dims-title { font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 14px; }
+  .e-dim-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px;
+    margin-bottom: 10px;
+    border-radius: 14px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06);
+    position: relative;
+    overflow: hidden;
+  }
+  .e-dim-card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    border-radius: 0 2px 2px 0;
+  }
+  .e-dim-card.high::before { background: oklch(0.65 0.2 293); box-shadow: 0 0 8px oklch(0.5 0.2 293 / 0.5); }
+  .e-dim-card.med::before { background: oklch(0.6 0.15 270); box-shadow: 0 0 8px oklch(0.5 0.15 270 / 0.4); }
+  .e-dim-card.low::before { background: oklch(0.5 0.12 250); }
+  .e-dim-emoji { font-size: 22px; flex-shrink: 0; }
+  .e-dim-info { flex: 1; }
+  .e-dim-name { font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.85); }
+  .e-dim-bar-wrap { height: 5px; background: rgba(255,255,255,0.08); border-radius: 3px; margin-top: 6px; overflow: hidden; }
+  .e-dim-bar-fill { height: 100%; border-radius: 3px; }
+  .e-dim-card.high .e-dim-bar-fill { background: linear-gradient(90deg, oklch(0.5 0.25 293), oklch(0.7 0.2 293)); box-shadow: 0 0 6px oklch(0.5 0.2 293 / 0.3); }
+  .e-dim-card.med .e-dim-bar-fill { background: linear-gradient(90deg, oklch(0.45 0.2 270), oklch(0.6 0.18 270)); }
+  .e-dim-card.low .e-dim-bar-fill { background: linear-gradient(90deg, oklch(0.4 0.15 250), oklch(0.55 0.12 260)); }
+  .e-dim-pct { font-size: 16px; font-weight: 800; flex-shrink: 0; }
+  .e-dim-card.high .e-dim-pct { color: oklch(0.7 0.2 293); }
+  .e-dim-card.med .e-dim-pct { color: oklch(0.65 0.15 270); }
+  .e-dim-card.low .e-dim-pct { color: oklch(0.55 0.12 250); }
+
+  /* Player */
+  .e-player {
+    margin: 0 24px 20px;
+    padding: 14px 16px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,0.06);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .e-play-btn { width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, oklch(0.55 0.25 293), oklch(0.45 0.22 310)); display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 0 16px oklch(0.45 0.2 293 / 0.4); }
+  .e-play-btn::after { content: ''; width: 0; height: 0; border-left: 9px solid white; border-top: 5px solid transparent; border-bottom: 5px solid transparent; margin-left: 2px; }
+
+  /* Insights */
+  .e-insights { padding: 0 24px 20px; }
+  .e-insights-title { font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+  .e-insight {
+    padding: 14px 16px;
+    border-radius: 12px;
+    margin-bottom: 10px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06);
+    display: flex; gap: 12px; align-items: flex-start;
+  }
+  .e-insight-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+  .e-insight-title { font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.85); }
+  .e-insight-desc { font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 3px; }
+
+  /* Share */
+  .e-share { margin: 0 24px 24px; padding: 16px; border-radius: 14px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06); }
+  .e-share-title { font-size: 12px; font-weight: 700; color: rgba(255,255,255,0.35); margin-bottom: 10px; }
+  .e-share-btns { display: flex; gap: 8px; }
+  .e-share-btn { flex: 1; padding: 8px; border-radius: 8px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08); color: rgba(255,255,255,0.6); font-size: 12px; font-weight: 600; text-align: center; cursor: pointer; }
+
+  /* ============================================
+     CONCEPT F: Spotify Wrapped / Story Card
+     ============================================ */
+  .f-wrap {
+    border-radius: 24px;
+    overflow: hidden;
+    background: linear-gradient(160deg, oklch(0.35 0.22 310), oklch(0.45 0.28 293), oklch(0.3 0.2 270));
+    color: white;
+    position: relative;
+  }
+  .f-wrap::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: url("data:image/svg+xml,%3Csvg width='480' height='1200' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3CradialGradient id='a' cx='0.3' cy='0.2' r='0.5'%3E%3Cstop offset='0' stop-color='%23fff' stop-opacity='0.06'/%3E%3Cstop offset='1' stop-color='%23fff' stop-opacity='0'/%3E%3C/radialGradient%3E%3CradialGradient id='b' cx='0.8' cy='0.6' r='0.4'%3E%3Cstop offset='0' stop-color='%23fff' stop-opacity='0.04'/%3E%3Cstop offset='1' stop-color='%23fff' stop-opacity='0'/%3E%3C/radialGradient%3E%3C/defs%3E%3Ccircle cx='144' cy='240' r='200' fill='url(%23a)'/%3E%3Ccircle cx='384' cy='720' r='180' fill='url(%23b)'/%3E%3C/svg%3E") center/cover;
+    pointer-events: none;
+  }
+
+  .f-header {
+    padding: 32px 24px 0;
+    position: relative; z-index: 2;
+  }
+  .f-eyebrow {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    color: rgba(255,255,255,0.5);
+    margin-bottom: 8px;
+  }
+  .f-title { font-size: 28px; font-weight: 900; line-height: 1.1; }
+  .f-context { font-size: 13px; color: rgba(255,255,255,0.6); margin-top: 4px; font-weight: 500; }
+
+  .f-hero-score {
+    padding: 40px 24px 32px;
+    text-align: center;
+    position: relative; z-index: 2;
+  }
+  .f-hero-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: rgba(255,255,255,0.45);
+  }
+  .f-hero-num {
+    font-size: 96px;
+    font-weight: 900;
+    line-height: 1;
+    margin-top: 4px;
+    color: white;
+    text-shadow: 0 4px 40px rgba(255,255,255,0.3);
+  }
+  .f-hero-pct {
+    font-size: 32px;
+    font-weight: 900;
+    color: rgba(255,255,255,0.5);
+    margin-left: 2px;
+  }
+  .f-hero-subtitle {
+    margin-top: 8px;
+    font-size: 16px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.7);
+  }
+
+  /* Horizontal stat blocks */
+  .f-stats {
+    padding: 0 24px 24px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    position: relative; z-index: 2;
+  }
+  .f-stat {
+    background: rgba(255,255,255,0.08);
+    backdrop-filter: blur(8px);
+    border-radius: 16px;
+    padding: 16px;
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .f-stat-emoji { font-size: 20px; margin-bottom: 6px; }
+  .f-stat-name { font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.5); }
+  .f-stat-val { font-size: 28px; font-weight: 900; margin-top: 2px; }
+  .f-stat-bar { height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; margin-top: 8px; overflow: hidden; }
+  .f-stat-bar-fill { height: 100%; border-radius: 2px; background: rgba(255,255,255,0.6); }
+
+  /* Takeaway */
+  .f-takeaway {
+    margin: 0 24px 24px;
+    padding: 20px;
+    border-radius: 16px;
+    background: rgba(0,0,0,0.2);
+    border: 1px solid rgba(255,255,255,0.06);
+    position: relative; z-index: 2;
+  }
+  .f-takeaway-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: rgba(255,255,255,0.35); margin-bottom: 8px; }
+  .f-takeaway-text { font-size: 15px; font-weight: 600; color: rgba(255,255,255,0.85); line-height: 1.5; }
+
+  /* Player */
+  .f-player {
+    margin: 0 24px 24px;
+    padding: 14px 16px;
+    background: rgba(0,0,0,0.15);
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,0.06);
+    display: flex; align-items: center; gap: 12px;
+    position: relative; z-index: 2;
+  }
+  .f-play-btn { width: 36px; height: 36px; border-radius: 50%; background: white; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .f-play-btn::after { content: ''; width: 0; height: 0; border-left: 9px solid oklch(0.35 0.22 293); border-top: 5px solid transparent; border-bottom: 5px solid transparent; margin-left: 2px; }
+  .f-waveform { flex: 1; height: 24px; display: flex; align-items: center; gap: 2px; }
+  .f-waveform .bar { flex: 1; border-radius: 2px; background: white; opacity: 0.2; }
+  .f-waveform .bar.filled { opacity: 0.7; }
+  .f-time { font-size: 11px; color: rgba(255,255,255,0.4); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+
+  .f-share { margin: 0 24px 24px; position: relative; z-index: 2; }
+  .f-share-btn-main {
+    width: 100%;
+    padding: 14px;
+    border-radius: 999px;
+    background: white;
+    color: oklch(0.35 0.2 293);
+    font-size: 14px;
+    font-weight: 700;
+    text-align: center;
+    cursor: pointer;
+    border: none;
+  }
+  .f-share-row { display: flex; gap: 8px; margin-top: 10px; }
+  .f-share-sm { flex: 1; padding: 10px; border-radius: 10px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.6); font-size: 12px; font-weight: 600; text-align: center; cursor: pointer; }
+
+  /* ============================================
+     CONCEPT G: Ticket Stub / Festival Wristband
+     ============================================ */
+  .g-wrap { background: var(--bg); border-radius: 24px; overflow: hidden; }
+
+  .g-ticket {
+    margin: 20px;
+    border: 2px solid var(--fg);
+    border-radius: 16px;
+    overflow: hidden;
+    position: relative;
+  }
+  /* Perforated edge */
+  .g-ticket::before {
+    content: '';
+    position: absolute;
+    left: -1px; right: -1px;
+    top: 200px;
+    height: 0;
+    border-top: 2px dashed var(--border);
+    z-index: 3;
+  }
+  /* Notches */
+  .g-notch-left, .g-notch-right {
+    position: absolute;
+    top: 192px;
+    width: 18px; height: 18px;
+    background: var(--bg);
+    border-radius: 50%;
+    z-index: 4;
+    border: 2px solid var(--fg);
+  }
+  .g-notch-left { left: -10px; }
+  .g-notch-right { right: -10px; }
+
+  .g-ticket-top {
+    padding: 24px;
+    background: linear-gradient(135deg, oklch(0.15 0.03 293), oklch(0.2 0.08 293));
+    color: white;
+    position: relative;
+  }
+  .g-ticket-eyebrow {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    color: rgba(255,255,255,0.4);
+    margin-bottom: 12px;
+  }
+  .g-ticket-title { font-size: 22px; font-weight: 900; line-height: 1.1; }
+  .g-ticket-context { font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 4px; }
+
+  .g-ticket-score-row {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(255,255,255,0.1);
+  }
+  .g-ticket-score { font-size: 48px; font-weight: 900; line-height: 1; }
+  .g-ticket-score-meta {}
+  .g-ticket-score-label { font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 1px; }
+  .g-ticket-score-percentile { font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 2px; }
+
+  .g-ticket-bottom { padding: 24px; }
+
+  .g-dims-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .g-dim-cell {
+    padding: 12px;
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    text-align: center;
+  }
+  .g-dim-emoji { font-size: 20px; margin-bottom: 4px; }
+  .g-dim-name { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .g-dim-val { font-size: 24px; font-weight: 900; color: var(--primary); margin-top: 2px; }
+
+  .g-player {
+    padding: 14px 16px;
+    border: 1.5px solid var(--border);
+    border-radius: 14px;
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .g-barcode {
+    display: flex;
+    justify-content: center;
+    gap: 1.5px;
+    padding: 8px 0;
+    opacity: 0.15;
+  }
+  .g-barcode span {
+    display: block;
+    height: 32px;
+    background: var(--fg);
+  }
+
+  .g-insights { margin-top: 16px; }
+  .g-insight {
+    padding: 12px;
+    border-radius: 10px;
+    margin-bottom: 8px;
+    font-size: 12px;
+    display: flex; gap: 10px; align-items: flex-start;
+  }
+  .g-insight.success { background: oklch(0.97 0.03 145); }
+  .g-insight.warning { background: oklch(0.97 0.04 85); }
+  .g-insight-emoji { font-size: 16px; flex-shrink: 0; }
+  .g-insight-text { flex: 1; }
+  .g-insight-title { font-weight: 700; font-size: 12px; }
+  .g-insight-desc { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  /* Share below ticket */
+  .g-share { padding: 0 20px 24px; }
+  .g-share-btns { display: flex; gap: 8px; }
+  .g-share-btn { flex: 1; padding: 10px; border-radius: 10px; background: var(--muted-bg); border: 1.5px solid var(--border); font-size: 12px; font-weight: 600; text-align: center; cursor: pointer; }
+
+  /* ============================================
+     CONCEPT H: Mixing Console / Faders
+     ============================================ */
+  .h-wrap { background: oklch(0.14 0.01 260); color: white; border-radius: 24px; overflow: hidden; }
+
+  .h-header {
+    padding: 28px 24px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .h-title { font-size: 20px; font-weight: 700; }
+  .h-badge {
+    display: inline-block;
+    margin-top: 6px;
+    padding: 3px 12px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    background: oklch(0.55 0.2 145 / 0.15);
+    color: oklch(0.7 0.18 145);
+    border: 1px solid oklch(0.55 0.2 145 / 0.2);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  /* VU Meter score */
+  .h-vu-section {
+    padding: 28px 24px;
+    text-align: center;
+  }
+  .h-vu-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: rgba(255,255,255,0.3); margin-bottom: 12px; }
+  .h-vu-meter {
+    width: 240px;
+    height: 120px;
+    margin: 0 auto;
+    position: relative;
+    overflow: hidden;
+  }
+  .h-vu-meter svg { width: 100%; height: 100%; }
+  .h-vu-value {
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 28px;
+    font-weight: 900;
+  }
+  .h-vu-percentile { font-size: 12px; color: rgba(255,255,255,0.35); margin-top: 8px; }
+
+  /* Fader channels */
+  .h-console {
+    padding: 0 24px 24px;
+  }
+  .h-console-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,0.3); margin-bottom: 16px; }
+  .h-channels {
+    display: flex;
+    gap: 8px;
+  }
+  .h-channel {
+    flex: 1;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12px;
+    padding: 12px 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  .h-ch-emoji { font-size: 16px; }
+  .h-ch-name { font-size: 9px; font-weight: 700; color: rgba(255,255,255,0.4); text-transform: uppercase; text-align: center; letter-spacing: 0.5px; line-height: 1.2; }
+  .h-fader-track {
+    width: 6px;
+    height: 80px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 3px;
+    position: relative;
+    overflow: hidden;
+  }
+  .h-fader-fill {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    border-radius: 3px;
+  }
+  .h-fader-knob {
+    position: absolute;
+    width: 18px;
+    height: 10px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.9), rgba(255,255,255,0.6));
+    border-radius: 2px;
+    left: 50%;
+    transform: translateX(-50%);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+  }
+  .h-ch-value { font-size: 14px; font-weight: 800; }
+  .h-ch-led {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    box-shadow: 0 0 4px;
+  }
+
+  /* Player */
+  .h-player {
+    margin: 0 24px 20px;
+    padding: 14px 16px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.06);
+    display: flex; align-items: center; gap: 12px;
+  }
+
+  /* Insights */
+  .h-insights { padding: 0 24px 20px; }
+  .h-insights-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,0.3); margin-bottom: 12px; }
+  .h-insight {
+    padding: 12px 14px;
+    border-radius: 10px;
+    margin-bottom: 8px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .h-insight-title { font-size: 12px; font-weight: 700; color: rgba(255,255,255,0.8); }
+  .h-insight-desc { font-size: 11px; color: rgba(255,255,255,0.35); margin-top: 3px; }
+
+  .h-share { margin: 0 24px 24px; }
+  .h-share-btns { display: flex; gap: 8px; }
+  .h-share-btn { flex: 1; padding: 10px; border-radius: 8px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08); color: rgba(255,255,255,0.5); font-size: 12px; font-weight: 600; text-align: center; cursor: pointer; }
+
+  /* ============================================
+     CONCEPT I: Festival Poster / Bold Type
+     ============================================ */
+  .i-wrap {
+    background: linear-gradient(180deg, oklch(0.08 0.01 280) 0%, oklch(0.15 0.04 293) 100%);
+    color: white;
+    border-radius: 24px;
+    overflow: hidden;
+    position: relative;
+  }
+  /* Laser beams */
+  .i-lasers {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 300px;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .i-laser {
+    position: absolute;
+    top: 0;
+    width: 2px;
+    height: 300px;
+    opacity: 0.12;
+  }
+  .i-laser:nth-child(1) { left: 20%; background: linear-gradient(180deg, oklch(0.7 0.25 293), transparent); transform: rotate(15deg); transform-origin: top center; }
+  .i-laser:nth-child(2) { left: 50%; background: linear-gradient(180deg, oklch(0.7 0.2 320), transparent); }
+  .i-laser:nth-child(3) { left: 80%; background: linear-gradient(180deg, oklch(0.7 0.25 270), transparent); transform: rotate(-15deg); transform-origin: top center; }
+  .i-laser:nth-child(4) { left: 35%; background: linear-gradient(180deg, oklch(0.6 0.2 200), transparent); transform: rotate(8deg); transform-origin: top center; }
+  .i-laser:nth-child(5) { left: 65%; background: linear-gradient(180deg, oklch(0.6 0.2 340), transparent); transform: rotate(-8deg); transform-origin: top center; }
+
+  .i-header {
+    position: relative; z-index: 2;
+    padding: 32px 24px 0;
+  }
+  .i-eyebrow {
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 4px;
+    color: rgba(255,255,255,0.3);
+  }
+  .i-title {
+    font-size: 32px;
+    font-weight: 900;
+    line-height: 1;
+    margin-top: 8px;
+    letter-spacing: -0.5px;
+  }
+  .i-context {
+    font-size: 12px;
+    color: rgba(255,255,255,0.4);
+    margin-top: 6px;
+    font-weight: 500;
+  }
+
+  /* Giant score as poster headline */
+  .i-score-poster {
+    position: relative; z-index: 2;
+    padding: 40px 24px;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .i-score-big {
+    font-size: 120px;
+    font-weight: 900;
+    line-height: 0.85;
+    letter-spacing: -6px;
+    background: linear-gradient(180deg, white 30%, oklch(0.6 0.2 293) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .i-score-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .i-score-pct {
+    font-size: 32px;
+    font-weight: 900;
+    color: rgba(255,255,255,0.3);
+  }
+  .i-score-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: rgba(255,255,255,0.25);
+  }
+  .i-percentile-tag {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: rgba(255,255,255,0.6);
+    margin-top: 4px;
+  }
+
+  /* Crowd with raised phones */
+  .i-crowd-section {
+    position: relative;
+    height: 80px;
+    margin: 0 24px;
+    z-index: 2;
+  }
+  .i-crowd-section svg { width: 100%; height: 100%; }
+
+  /* Lineup-style dimensions */
+  .i-lineup {
+    position: relative; z-index: 2;
+    padding: 20px 24px;
+  }
+  .i-lineup-title {
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    color: rgba(255,255,255,0.25);
+    margin-bottom: 16px;
+  }
+  .i-lineup-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+  .i-lineup-row:last-child { border-bottom: none; }
+  .i-lineup-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .i-lineup-emoji { font-size: 18px; }
+  .i-lineup-name { font-size: 14px; font-weight: 700; }
+  .i-lineup-pct {
+    font-size: 20px;
+    font-weight: 900;
+    font-variant-numeric: tabular-nums;
+  }
+  .i-lineup-row.headliner .i-lineup-name { font-size: 16px; }
+  .i-lineup-row.headliner .i-lineup-pct { color: white; }
+  .i-lineup-row:not(.headliner) .i-lineup-pct { color: rgba(255,255,255,0.5); }
+  .i-lineup-row:not(.headliner) .i-lineup-name { color: rgba(255,255,255,0.6); }
+
+  .i-section { position: relative; z-index: 2; }
+
+  /* ============================================
+     CONCEPT J: Arena Scoreboard
+     ============================================ */
+  .j-wrap {
+    background: oklch(0.11 0.02 270);
+    color: white;
+    border-radius: 24px;
+    overflow: hidden;
+  }
+
+  .j-scoreboard {
+    margin: 20px;
+    border: 2px solid rgba(255,255,255,0.08);
+    border-radius: 16px;
+    overflow: hidden;
+    background: linear-gradient(180deg, oklch(0.14 0.025 270), oklch(0.11 0.015 280));
+  }
+
+  .j-sb-header {
+    padding: 16px 20px;
+    background: rgba(255,255,255,0.03);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .j-sb-logo { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 3px; color: rgba(255,255,255,0.3); }
+  .j-sb-dots { display: flex; gap: 4px; }
+  .j-sb-dots span { width: 6px; height: 6px; border-radius: 50%; }
+
+  /* LED-style score display */
+  .j-led-section {
+    padding: 28px 20px;
+    text-align: center;
+    position: relative;
+  }
+  .j-led-title { font-size: 18px; font-weight: 800; margin-bottom: 4px; }
+  .j-led-context { font-size: 11px; color: rgba(255,255,255,0.35); margin-bottom: 20px; }
+  .j-led-score {
+    font-size: 80px;
+    font-weight: 900;
+    font-family: 'Courier New', monospace;
+    letter-spacing: 4px;
+    line-height: 1;
+    color: oklch(0.85 0.15 80);
+    text-shadow: 0 0 30px oklch(0.7 0.2 80 / 0.5), 0 0 60px oklch(0.6 0.15 80 / 0.2);
+  }
+  .j-led-sublabel {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    color: rgba(255,255,255,0.25);
+    margin-top: 8px;
+  }
+  .j-led-percentile {
+    margin-top: 12px;
+    display: inline-block;
+    padding: 4px 14px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    background: oklch(0.85 0.15 80 / 0.1);
+    border: 1px solid oklch(0.85 0.15 80 / 0.2);
+    color: oklch(0.8 0.12 80);
+  }
+
+  /* Stats grid like a scoreboard */
+  .j-stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    border-top: 1px solid rgba(255,255,255,0.06);
+  }
+  .j-stat-cell {
+    padding: 16px 20px;
+    text-align: center;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    position: relative;
+  }
+  .j-stat-cell:nth-child(odd) { border-right: 1px solid rgba(255,255,255,0.06); }
+  .j-stat-emoji { font-size: 16px; margin-bottom: 4px; }
+  .j-stat-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: rgba(255,255,255,0.35); }
+  .j-stat-val {
+    font-size: 28px;
+    font-weight: 900;
+    font-family: 'Courier New', monospace;
+    margin-top: 2px;
+  }
+  .j-stat-val.hot { color: oklch(0.85 0.15 80); text-shadow: 0 0 10px oklch(0.7 0.15 80 / 0.3); }
+  .j-stat-val.warm { color: oklch(0.75 0.1 80); }
+  .j-stat-val.cool { color: rgba(255,255,255,0.5); }
+
+  /* Crowd wave animation */
+  .j-crowd-wave {
+    padding: 16px 20px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+  }
+  .j-crowd-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,0.25); margin-bottom: 10px; text-align: center; }
+  .j-wave-bars {
+    display: flex;
+    align-items: end;
+    justify-content: center;
+    gap: 3px;
+    height: 40px;
+  }
+  .j-wave-bars span {
+    width: 6px;
+    border-radius: 3px 3px 0 0;
+    background: oklch(0.6 0.2 293);
+    animation: wave-bounce 1.2s ease-in-out infinite;
+  }
+  @keyframes wave-bounce {
+    0%, 100% { transform: scaleY(0.3); opacity: 0.4; }
+    50% { transform: scaleY(1); opacity: 1; }
+  }
+
+  /* Below scoreboard */
+  .j-below { padding: 0 20px 20px; }
+  .j-player {
+    padding: 14px 16px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,0.06);
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 14px;
+  }
+  .j-insights { margin-bottom: 14px; }
+  .j-insight {
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06);
+    margin-bottom: 8px;
+  }
+  .j-insight-title { font-size: 12px; font-weight: 700; color: rgba(255,255,255,0.8); }
+  .j-insight-desc { font-size: 11px; color: rgba(255,255,255,0.35); margin-top: 3px; }
+  .j-share-btns { display: flex; gap: 8px; }
+  .j-share-btn { flex: 1; padding: 10px; border-radius: 8px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08); color: rgba(255,255,255,0.5); font-size: 12px; font-weight: 600; text-align: center; cursor: pointer; }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <h1>Soundcheck Wireframes</h1>
+  <div class="tabs">
+    <div class="tab active" onclick="showConcept('a')">A: Vinyl</div>
+    <div class="tab" onclick="showConcept('b')">B: Radar</div>
+    <div class="tab" onclick="showConcept('c')">C: Neon</div>
+    <div class="tab" onclick="showConcept('d')">D: Album</div>
+    <div class="tab" onclick="showConcept('e')">E: Concert</div>
+    <div class="tab" onclick="showConcept('f')">F: Wrapped</div>
+    <div class="tab" onclick="showConcept('g')">G: Ticket</div>
+    <div class="tab" onclick="showConcept('h')">H: Console</div>
+    <div class="tab" onclick="showConcept('i')">I: Festival</div>
+    <div class="tab" onclick="showConcept('j')">J: Arena</div>
+  </div>
+  <div class="state-toggle">
+    <label id="label-complete" class="active-label">Complete</label>
+    <div class="toggle-track" id="state-toggle" onclick="toggleState()">
+      <div class="toggle-knob"></div>
+    </div>
+    <label id="label-collecting">Collecting</label>
+  </div>
+</nav>
+
+<!-- ==================== CONCEPT A ==================== -->
+<div class="concept active" id="concept-a">
+  <div class="concept-label">
+    <h2>A: Vinyl Record + Equalizer Bars</h2>
+    <p>Spinning vinyl disc for the score, vertical equalizer bars for dimensions</p>
+  </div>
+  <div class="phone-frame">
+    <div class="a-header">
+      <div class="a-title">Late Night Drive</div>
+      <span class="when-complete"><div class="a-badge">Complete</div></span>
+      <span class="when-collecting"><div class="a-badge" style="border-color:rgba(34,197,94,0.3);color:rgba(34,197,94,0.9);">
+        <span class="pulse-dot" style="margin-right:4px;"></span> Collecting
+      </div></span>
+    </div>
+    <!-- Complete: vinyl score -->
+    <div class="when-complete" style="padding: 0 24px;">
+      <div class="a-vinyl">
+        <div class="a-vinyl-disc">
+          <div class="a-vinyl-center">
+            <div class="a-vinyl-score">78%</div>
+            <div class="a-vinyl-label">Score</div>
+          </div>
+        </div>
+      </div>
+      <div class="a-percentile">Top 15% of all tracks tested</div>
+    </div>
+    <!-- Collecting: preliminary vinyl -->
+    <div class="when-collecting" style="padding: 0 24px;">
+      <div class="a-vinyl">
+        <div class="a-vinyl-disc" style="opacity:0.6;">
+          <div class="a-vinyl-center" style="background:linear-gradient(135deg, rgba(139,92,246,0.5), rgba(167,139,250,0.5));">
+            <div class="a-vinyl-score" style="font-size:18px;">~62%</div>
+            <div class="a-vinyl-label">Prelim</div>
+          </div>
+        </div>
+      </div>
+      <div class="a-percentile" style="margin-bottom:8px;">Preliminary — 8 of 20 votes</div>
+      <div class="vote-progress vote-progress-light" style="margin:0;">
+        <div class="vote-progress-bar" style="background:var(--muted-bg);"><div class="vote-progress-fill" style="width:40%;"></div></div>
+      </div>
+    </div>
+    <div class="a-player">
+      <div class="shared-play-btn"></div>
+      <div class="shared-waveform" id="waveform-a"></div>
+      <div class="shared-time">0:00 / 0:30</div>
+    </div>
+    <div class="a-eq-section">
+      <div class="a-eq-label">Dimension Breakdown</div>
+      <div class="a-eq-grid">
+        <div class="a-eq-item">
+          <div class="a-eq-bar-wrap"><div class="a-eq-bar-fill" style="height:85%;background:linear-gradient(180deg, oklch(0.65 0.25 293), oklch(0.45 0.28 293));"><div class="a-eq-pct">85%</div></div></div>
+          <div class="a-eq-emoji">🎣</div><div class="a-eq-name">Hook Factor</div>
+        </div>
+        <div class="a-eq-item">
+          <div class="a-eq-bar-wrap"><div class="a-eq-bar-fill" style="height:72%;background:linear-gradient(180deg, oklch(0.65 0.25 293), oklch(0.45 0.28 293));"><div class="a-eq-pct">72%</div></div></div>
+          <div class="a-eq-emoji">🧠</div><div class="a-eq-name">Memorability</div>
+        </div>
+        <div class="a-eq-item">
+          <div class="a-eq-bar-wrap"><div class="a-eq-bar-fill" style="height:90%;background:linear-gradient(180deg, oklch(0.65 0.25 293), oklch(0.45 0.28 293));"><div class="a-eq-pct">90%</div></div></div>
+          <div class="a-eq-emoji">💃</div><div class="a-eq-name">Movement</div>
+        </div>
+        <div class="a-eq-item">
+          <div class="a-eq-bar-wrap"><div class="a-eq-bar-fill" style="height:58%;background:linear-gradient(180deg, oklch(0.65 0.2 293), oklch(0.45 0.25 293));"><div class="a-eq-pct">58%</div></div></div>
+          <div class="a-eq-emoji">✨</div><div class="a-eq-name">Trend Fit</div>
+        </div>
+      </div>
+    </div>
+    <div class="spacer"></div>
+  </div>
+</div>
+
+<!-- ==================== CONCEPT B ==================== -->
+<div class="concept" id="concept-b">
+  <div class="concept-label">
+    <h2>B: Circular Score + Radar Chart</h2>
+    <p>Animated ring gauge for overall score, spider/radar chart for dimensions</p>
+  </div>
+  <div class="phone-frame">
+    <div class="b-header">
+      <div class="b-title">Late Night Drive</div>
+      <div class="b-meta">
+        <span class="when-complete"><div class="b-badge-complete">COMPLETE</div></span>
+        <span class="when-collecting"><div class="collecting-badge" style="background:oklch(0.95 0.04 145);color:oklch(0.4 0.15 145);"><span class="pulse-dot"></span> COLLECTING</div></span>
+      </div>
+    </div>
+    <!-- Collecting: progress -->
+    <div class="when-collecting vote-progress vote-progress-light" style="margin:0 24px 16px;">
+      <div class="vote-progress-bar" style="background:var(--muted-bg);"><div class="vote-progress-fill" style="width:40%;"></div></div>
+      <div class="vote-progress-text" style="color:var(--muted);">8 of 20 votes collected</div>
+    </div>
+    <div class="b-player">
+      <div class="shared-play-btn"></div>
+      <div class="shared-waveform" id="waveform-b"></div>
+      <div class="shared-time">0:00 / 0:30</div>
+    </div>
+    <!-- Complete score -->
+    <div class="when-complete">
+      <div class="b-score-card" style="margin-top: 16px;">
+        <div class="b-score-ring">
+          <svg viewBox="0 0 140 140"><circle class="bg-circle" cx="70" cy="70" r="65" /><circle class="fg-circle" cx="70" cy="70" r="65" stroke-dashoffset="90" /></svg>
+          <div class="b-score-value"><div class="b-score-num">78%</div><div class="b-score-unit">virality</div></div>
+        </div>
+        <div class="b-percentile">Top 15% of all tracks tested</div>
+      </div>
+    </div>
+    <!-- Collecting score -->
+    <div class="when-collecting">
+      <div class="b-score-card" style="margin-top: 16px; border: 2px dashed oklch(0.8 0.1 293); background: oklch(0.98 0.01 293);">
+        <div class="b-score-ring">
+          <svg viewBox="0 0 140 140"><circle class="bg-circle" cx="70" cy="70" r="65" /><circle class="fg-circle" cx="70" cy="70" r="65" stroke-dashoffset="155" style="opacity:0.5;" /></svg>
+          <div class="b-score-value"><div class="b-score-num" style="opacity:0.6;">~62%</div><div class="b-score-unit">preliminary</div></div>
+        </div>
+        <div class="b-percentile" style="font-style:italic;">May shift as more votes come in</div>
+      </div>
+    </div>
+    <div class="b-radar-section">
+      <div class="b-radar-title">Dimension Breakdown</div>
+      <div class="b-radar-wrap">
+        <svg class="b-radar-svg" viewBox="0 0 240 240">
+          <polygon points="120,30 198,75 198,165 120,210 42,165 42,75" fill="none" stroke="#e5e5e5" stroke-width="1"/>
+          <polygon points="120,52.5 176,82.5 176,157.5 120,187.5 64,157.5 64,82.5" fill="none" stroke="#e5e5e5" stroke-width="1"/>
+          <polygon points="120,75 154,90 154,150 120,165 86,150 86,90" fill="none" stroke="#e5e5e5" stroke-width="1"/>
+          <line x1="120" y1="30" x2="120" y2="210" stroke="#e5e5e5" stroke-width="0.5"/>
+          <line x1="42" y1="75" x2="198" y2="165" stroke="#e5e5e5" stroke-width="0.5"/>
+          <line x1="42" y1="165" x2="198" y2="75" stroke="#e5e5e5" stroke-width="0.5"/>
+          <polygon points="120,43 185,95 165,178 62,148" fill="oklch(0.541 0.281 293.009 / 0.15)" stroke="oklch(0.541 0.281 293.009)" stroke-width="2"/>
+          <circle cx="120" cy="43" r="5" fill="oklch(0.541 0.281 293.009)"/>
+          <circle cx="185" cy="95" r="5" fill="oklch(0.541 0.281 293.009)"/>
+          <circle cx="165" cy="178" r="5" fill="oklch(0.541 0.281 293.009)"/>
+          <circle cx="62" cy="148" r="5" fill="oklch(0.541 0.281 293.009)"/>
+          <text x="120" y="22" text-anchor="middle" font-size="11" font-weight="600" fill="#888">🎣 Hook</text>
+          <text x="208" y="92" text-anchor="start" font-size="11" font-weight="600" fill="#888">🧠 Memory</text>
+          <text x="175" y="195" text-anchor="start" font-size="11" font-weight="600" fill="#888">💃 Move</text>
+          <text x="35" y="160" text-anchor="end" font-size="11" font-weight="600" fill="#888">✨ Trend</text>
+        </svg>
+      </div>
+      <div class="b-radar-labels">
+        <div class="b-radar-label-item"><span class="b-radar-emoji">🎣</span><span class="b-radar-label-text">Hook Factor</span><span class="b-radar-label-pct">85%</span></div>
+        <div class="b-radar-label-item"><span class="b-radar-emoji">🧠</span><span class="b-radar-label-text">Memorability</span><span class="b-radar-label-pct">72%</span></div>
+        <div class="b-radar-label-item"><span class="b-radar-emoji">💃</span><span class="b-radar-label-text">Movement</span><span class="b-radar-label-pct">90%</span></div>
+        <div class="b-radar-label-item"><span class="b-radar-emoji">✨</span><span class="b-radar-label-text">Trend Fit</span><span class="b-radar-label-pct">58%</span></div>
+      </div>
+    </div>
+    <div class="spacer"></div>
+  </div>
+</div>
+
+<!-- ==================== CONCEPT C ==================== -->
+<div class="concept" id="concept-c">
+  <div class="concept-label">
+    <h2>C: Dark Mode Neon + Frequency Spectrum</h2>
+    <p>Dark background, glowing score, frequency-style dimension bars</p>
+  </div>
+  <div class="phone-frame">
+    <div class="c-wrap">
+      <div class="c-header">
+        <div class="c-title">Late Night Drive</div>
+        <span class="when-complete"><div class="c-badge">Complete</div></span>
+        <span class="when-collecting"><div class="c-badge" style="background:rgba(34,197,94,0.15);color:oklch(0.7 0.18 145);border-color:rgba(34,197,94,0.25);"><span class="pulse-dot" style="margin-right:4px;"></span> Collecting</div></span>
+      </div>
+      <!-- Collecting: progress -->
+      <div class="when-collecting vote-progress" style="margin-top:16px;">
+        <div class="vote-progress-bar"><div class="vote-progress-fill" style="width:40%;"></div></div>
+        <div class="vote-progress-text">8 of 20 votes collected</div>
+      </div>
+      <!-- Complete score -->
+      <div class="when-complete">
+        <div class="c-score-section">
+          <div class="c-score-glow"></div>
+          <div class="c-score-num">78%</div>
+          <div class="c-score-label">Virality Score</div>
+          <div class="c-percentile">Top 15% of all tracks tested</div>
+        </div>
+      </div>
+      <!-- Collecting score -->
+      <div class="when-collecting">
+        <div class="c-score-section">
+          <div class="c-score-glow" style="opacity:0.4;"></div>
+          <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:4px;position:relative;">
+            <span class="pulse-dot"></span>
+            <span style="font-size:11px;color:rgba(255,255,255,0.4);font-weight:600;text-transform:uppercase;letter-spacing:1px;">Live</span>
+          </div>
+          <div class="c-score-num" style="font-size:52px;opacity:0.7;">~62%</div>
+          <div class="c-score-label">Preliminary Score</div>
+          <div class="c-percentile" style="font-style:italic;">Based on 8 votes — may shift</div>
+        </div>
+      </div>
+      <div class="c-player">
+        <div class="c-play-btn"></div>
+        <div class="c-waveform" id="waveform-c"></div>
+        <div class="c-time">0:00 / 0:30</div>
+      </div>
+      <div class="c-spectrum">
+        <div class="c-spectrum-title">Frequency Analysis</div>
+        <div class="c-spectrum-item"><div class="c-spectrum-info"><div class="c-spectrum-name">🎣 Hook Factor</div><div class="c-spectrum-pct">85%</div></div><div class="c-spectrum-bar-wrap"><div class="c-spectrum-bar-fill" style="width:85%;background:linear-gradient(90deg, oklch(0.45 0.25 293), oklch(0.65 0.25 293));"><div class="freq-ticks" id="freq-a"></div></div></div></div>
+        <div class="c-spectrum-item"><div class="c-spectrum-info"><div class="c-spectrum-name">🧠 Memorability</div><div class="c-spectrum-pct">72%</div></div><div class="c-spectrum-bar-wrap"><div class="c-spectrum-bar-fill" style="width:72%;background:linear-gradient(90deg, oklch(0.45 0.2 280), oklch(0.6 0.2 280));"><div class="freq-ticks" id="freq-b"></div></div></div></div>
+        <div class="c-spectrum-item"><div class="c-spectrum-info"><div class="c-spectrum-name">💃 Movement</div><div class="c-spectrum-pct">90%</div></div><div class="c-spectrum-bar-wrap"><div class="c-spectrum-bar-fill" style="width:90%;background:linear-gradient(90deg, oklch(0.4 0.22 310), oklch(0.6 0.22 310));"><div class="freq-ticks" id="freq-c"></div></div></div></div>
+        <div class="c-spectrum-item"><div class="c-spectrum-info"><div class="c-spectrum-name">✨ Trend Fit</div><div class="c-spectrum-pct">58%</div></div><div class="c-spectrum-bar-wrap"><div class="c-spectrum-bar-fill" style="width:58%;background:linear-gradient(90deg, oklch(0.4 0.18 250), oklch(0.55 0.2 260));"><div class="freq-ticks" id="freq-d"></div></div></div></div>
+      </div>
+      <div class="when-complete">
+        <div class="c-section-title">Insights</div>
+        <div class="c-insight success"><div class="c-insight-title">Strong hook — Movement score is exceptional</div><div class="c-insight-desc">Your track's rhythmic elements tested in the top tier for dance-driven platforms.</div></div>
+        <div class="c-insight warning"><div class="c-insight-title">Room to grow — Trend alignment could improve</div><div class="c-insight-desc">Consider adjusting production to better match current trending sounds.</div></div>
+      </div>
+      <div class="c-share"><div class="c-share-title">Share Results</div><div class="c-share-btns"><div class="c-share-btn">Post</div><div class="c-share-btn">Message</div><div class="c-share-btn">Email</div><div class="c-share-btn">Copy</div></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== CONCEPT D ==================== -->
+<div class="concept" id="concept-d">
+  <div class="concept-label">
+    <h2>D: Album Art Hero + Floating Score Card</h2>
+    <p>Gradient hero with floating score overlay, clean bars with icon badges</p>
+  </div>
+  <div class="phone-frame">
+    <div class="d-hero-bg"></div>
+    <div class="d-score-float">
+      <div class="d-score-top">
+        <div class="d-score-circle"><div class="d-score-circle-inner"><div class="d-score-circle-num">78%</div><div class="d-score-circle-pct">virality</div></div></div>
+        <div class="d-score-info"><div class="d-score-title">Late Night Drive</div><div class="d-score-subtitle">TikTok/Reels Context</div><div class="d-score-percentile">Top 15%</div></div>
+      </div>
+    </div>
+    <div class="d-player" style="margin-top: 16px;">
+      <div class="shared-play-btn"></div>
+      <div class="shared-waveform" id="waveform-d"></div>
+      <div class="shared-time">0:00 / 0:30</div>
+    </div>
+    <div class="d-dims">
+      <div class="d-dims-title">Dimension Breakdown</div>
+      <div class="d-dim-row"><div class="d-dim-icon" style="background: oklch(0.95 0.04 293);">🎣</div><div class="d-dim-content"><div class="d-dim-top"><div class="d-dim-name">Hook Factor</div><div class="d-dim-pct" style="color: var(--primary);">85%</div></div><div class="d-dim-bar"><div class="d-dim-bar-fill" style="width:85%;background:linear-gradient(90deg, var(--primary), oklch(0.65 0.22 293));"></div></div></div></div>
+      <div class="d-dim-row"><div class="d-dim-icon" style="background: oklch(0.95 0.04 293);">🧠</div><div class="d-dim-content"><div class="d-dim-top"><div class="d-dim-name">Memorability</div><div class="d-dim-pct" style="color: var(--primary);">72%</div></div><div class="d-dim-bar"><div class="d-dim-bar-fill" style="width:72%;background:linear-gradient(90deg, var(--primary), oklch(0.65 0.22 293));"></div></div></div></div>
+      <div class="d-dim-row"><div class="d-dim-icon" style="background: oklch(0.95 0.04 293);">💃</div><div class="d-dim-content"><div class="d-dim-top"><div class="d-dim-name">Movement</div><div class="d-dim-pct" style="color: var(--primary);">90%</div></div><div class="d-dim-bar"><div class="d-dim-bar-fill" style="width:90%;background:linear-gradient(90deg, var(--primary), oklch(0.65 0.22 293));"></div></div></div></div>
+      <div class="d-dim-row"><div class="d-dim-icon" style="background: oklch(0.95 0.04 280);">✨</div><div class="d-dim-content"><div class="d-dim-top"><div class="d-dim-name">Trend Fit</div><div class="d-dim-pct" style="color: var(--chart2);">58%</div></div><div class="d-dim-bar"><div class="d-dim-bar-fill" style="width:58%;background:linear-gradient(90deg, var(--chart2), oklch(0.7 0.15 293));"></div></div></div></div>
+    </div>
+    <div class="d-insights">
+      <div class="d-insights-title">Insights</div>
+      <div class="d-insight success"><div class="d-insight-icon">🎯</div><div><div class="d-insight-title">Strong hook — Movement is exceptional</div><div class="d-insight-desc">Your track's rhythmic elements tested in the top tier.</div></div></div>
+      <div class="d-insight warning"><div class="d-insight-icon">📈</div><div><div class="d-insight-title">Room to grow — Trend alignment</div><div class="d-insight-desc">Consider adjusting production to match trending sounds.</div></div></div>
+    </div>
+    <div class="d-share"><div class="d-share-title">Share Results</div><div class="d-share-btns"><div class="d-share-btn">Post</div><div class="d-share-btn">Message</div><div class="d-share-btn">Email</div><div class="d-share-btn">Copy</div></div></div>
+    <div class="spacer"></div>
+  </div>
+</div>
+
+<!-- ==================== CONCEPT E: Concert Crowd ==================== -->
+<div class="concept" id="concept-e">
+  <div class="concept-label">
+    <h2>E: Concert Stage + Crowd Energy</h2>
+    <p>Stage lights, crowd silhouette, "crowd energy" meter, glowing dimension cards</p>
+  </div>
+  <div class="phone-frame">
+    <div class="e-wrap">
+      <div class="e-stage">
+        <div class="e-title">Late Night Drive</div>
+        <span class="when-complete"><div class="e-badge">Complete</div></span>
+        <span class="when-collecting"><div class="e-badge" style="border-color:rgba(34,197,94,0.3);"><span class="pulse-dot" style="margin-right:4px;"></span> Collecting</div></span>
+      </div>
+
+      <!-- Complete screen -->
+      <div class="when-complete">
+        <div class="e-screen">
+          <div class="e-screen-label">Virality Score</div>
+          <div class="e-screen-score">78%</div>
+          <div class="e-screen-percentile">Top 15% of all tracks tested</div>
+        </div>
+      </div>
+      <!-- Collecting screen -->
+      <div class="when-collecting">
+        <div class="e-screen" style="border-style:dashed;box-shadow:0 0 40px oklch(0.4 0.15 293 / 0.1);">
+          <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:6px;">
+            <span class="pulse-dot"></span>
+            <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:rgba(255,255,255,0.35);">Soundcheck in progress</span>
+          </div>
+          <div class="e-screen-score" style="font-size:56px;opacity:0.6;">~62%</div>
+          <div class="e-screen-percentile" style="font-style:italic;">8 of 20 votes — may shift as more come in</div>
+        </div>
+        <div class="vote-progress" style="margin-top:16px;">
+          <div class="vote-progress-bar"><div class="vote-progress-fill" style="width:40%;"></div></div>
+        </div>
+      </div>
+
+      <!-- Crowd silhouette -->
+      <div class="e-crowd">
+        <svg viewBox="0 0 432 60" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="crowd-grad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="white" stop-opacity="0.08"/>
+              <stop offset="1" stop-color="white" stop-opacity="0.02"/>
+            </linearGradient>
+          </defs>
+          <!-- Crowd heads -->
+          <circle cx="20" cy="22" r="8" fill="url(#crowd-grad)"/><circle cx="44" cy="18" r="9" fill="url(#crowd-grad)"/>
+          <circle cx="72" cy="24" r="7" fill="url(#crowd-grad)"/><circle cx="96" cy="16" r="10" fill="url(#crowd-grad)"/>
+          <circle cx="124" cy="20" r="8" fill="url(#crowd-grad)"/><circle cx="150" cy="25" r="7" fill="url(#crowd-grad)"/>
+          <circle cx="174" cy="17" r="9" fill="url(#crowd-grad)"/><circle cx="200" cy="22" r="8" fill="url(#crowd-grad)"/>
+          <circle cx="226" cy="15" r="10" fill="url(#crowd-grad)"/><circle cx="252" cy="21" r="8" fill="url(#crowd-grad)"/>
+          <circle cx="278" cy="18" r="9" fill="url(#crowd-grad)"/><circle cx="304" cy="24" r="7" fill="url(#crowd-grad)"/>
+          <circle cx="328" cy="16" r="10" fill="url(#crowd-grad)"/><circle cx="354" cy="22" r="8" fill="url(#crowd-grad)"/>
+          <circle cx="380" cy="19" r="9" fill="url(#crowd-grad)"/><circle cx="408" cy="25" r="7" fill="url(#crowd-grad)"/>
+          <!-- Raised hands -->
+          <rect x="40" y="4" width="3" height="14" rx="1.5" fill="url(#crowd-grad)" transform="rotate(-10 41 11)"/>
+          <rect x="93" y="2" width="3" height="14" rx="1.5" fill="url(#crowd-grad)" transform="rotate(5 94 9)"/>
+          <rect x="170" y="3" width="3" height="14" rx="1.5" fill="url(#crowd-grad)" transform="rotate(-8 171 10)"/>
+          <rect x="223" y="1" width="3" height="16" rx="1.5" fill="url(#crowd-grad)" transform="rotate(12 224 9)"/>
+          <rect x="325" y="2" width="3" height="15" rx="1.5" fill="url(#crowd-grad)" transform="rotate(-5 326 9)"/>
+          <rect x="377" y="5" width="3" height="13" rx="1.5" fill="url(#crowd-grad)" transform="rotate(8 378 11)"/>
+          <!-- Body mass -->
+          <rect x="0" y="30" width="432" height="30" fill="url(#crowd-grad)" rx="0"/>
+        </svg>
+      </div>
+
+      <!-- Crowd energy meter -->
+      <div class="e-crowd-meter">
+        <div class="e-crowd-meter-label">Crowd Energy</div>
+        <div class="e-crowd-meter-bar"><div class="e-crowd-meter-fill" style="width:78%;"></div></div>
+        <div class="e-crowd-meter-pct">78%</div>
+      </div>
+
+      <!-- Player -->
+      <div class="e-player" style="margin-top: 16px;">
+        <div class="e-play-btn"></div>
+        <div class="c-waveform" id="waveform-e"></div>
+        <div class="c-time">0:00 / 0:30</div>
+      </div>
+
+      <!-- Dimension cards -->
+      <div class="e-dims">
+        <div class="e-dims-title">Breakdown</div>
+        <div class="e-dim-card high">
+          <div class="e-dim-emoji">💃</div>
+          <div class="e-dim-info"><div class="e-dim-name">Movement</div><div class="e-dim-bar-wrap"><div class="e-dim-bar-fill" style="width:90%;"></div></div></div>
+          <div class="e-dim-pct">90%</div>
+        </div>
+        <div class="e-dim-card high">
+          <div class="e-dim-emoji">🎣</div>
+          <div class="e-dim-info"><div class="e-dim-name">Hook Factor</div><div class="e-dim-bar-wrap"><div class="e-dim-bar-fill" style="width:85%;"></div></div></div>
+          <div class="e-dim-pct">85%</div>
+        </div>
+        <div class="e-dim-card med">
+          <div class="e-dim-emoji">🧠</div>
+          <div class="e-dim-info"><div class="e-dim-name">Memorability</div><div class="e-dim-bar-wrap"><div class="e-dim-bar-fill" style="width:72%;"></div></div></div>
+          <div class="e-dim-pct">72%</div>
+        </div>
+        <div class="e-dim-card low">
+          <div class="e-dim-emoji">✨</div>
+          <div class="e-dim-info"><div class="e-dim-name">Trend Fit</div><div class="e-dim-bar-wrap"><div class="e-dim-bar-fill" style="width:58%;"></div></div></div>
+          <div class="e-dim-pct">58%</div>
+        </div>
+      </div>
+
+      <!-- Insights (complete only) -->
+      <div class="when-complete">
+        <div class="e-insights">
+          <div class="e-insights-title">Insights</div>
+          <div class="e-insight"><div class="e-insight-icon">🎯</div><div><div class="e-insight-title">Movement score would ignite a crowd</div><div class="e-insight-desc">Top-tier rhythmic energy suggests strong live and short-form potential.</div></div></div>
+          <div class="e-insight"><div class="e-insight-icon">📈</div><div><div class="e-insight-title">Trend fit needs a boost</div><div class="e-insight-desc">Aligning production with current sounds could push this further.</div></div></div>
+        </div>
+      </div>
+
+      <!-- Share -->
+      <div class="e-share">
+        <div class="e-share-title">Share Results</div>
+        <div class="e-share-btns"><div class="e-share-btn">Post</div><div class="e-share-btn">Message</div><div class="e-share-btn">Email</div><div class="e-share-btn">Copy</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== CONCEPT F: Spotify Wrapped ==================== -->
+<div class="concept" id="concept-f">
+  <div class="concept-label">
+    <h2>F: Spotify Wrapped / Story Card</h2>
+    <p>Bold gradient background, oversized score, 2x2 stat grid, shareable story format</p>
+  </div>
+  <div class="phone-frame">
+    <div class="f-wrap">
+      <div class="f-header">
+        <span class="when-complete"><div class="f-eyebrow">Your Results</div></span>
+        <span class="when-collecting"><div class="f-eyebrow" style="display:flex;align-items:center;gap:8px;"><span class="pulse-dot"></span> Collecting Votes</div></span>
+        <div class="f-title">Late Night Drive</div>
+        <div class="f-context">TikTok/Reels Context</div>
+      </div>
+      <!-- Complete score -->
+      <div class="when-complete">
+        <div class="f-hero-score">
+          <div class="f-hero-label">Virality Score</div>
+          <div class="f-hero-num">78<span class="f-hero-pct">%</span></div>
+          <div class="f-hero-subtitle">Top 15% of all tracks</div>
+        </div>
+      </div>
+      <!-- Collecting score -->
+      <div class="when-collecting">
+        <div class="f-hero-score">
+          <div class="f-hero-label">Preliminary Score</div>
+          <div class="f-hero-num" style="opacity:0.6;">~62<span class="f-hero-pct">%</span></div>
+          <div class="f-hero-subtitle" style="opacity:0.5;">8 of 20 votes — may shift</div>
+          <div style="margin:12px auto 0;width:200px;height:4px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden;"><div style="width:40%;height:100%;background:rgba(255,255,255,0.5);border-radius:2px;"></div></div>
+        </div>
+      </div>
+      <div class="f-stats">
+        <div class="f-stat"><div class="f-stat-emoji">🎣</div><div class="f-stat-name">Hook Factor</div><div class="f-stat-val">85%</div><div class="f-stat-bar"><div class="f-stat-bar-fill" style="width:85%;"></div></div></div>
+        <div class="f-stat"><div class="f-stat-emoji">🧠</div><div class="f-stat-name">Memorability</div><div class="f-stat-val">72%</div><div class="f-stat-bar"><div class="f-stat-bar-fill" style="width:72%;"></div></div></div>
+        <div class="f-stat"><div class="f-stat-emoji">💃</div><div class="f-stat-name">Movement</div><div class="f-stat-val">90%</div><div class="f-stat-bar"><div class="f-stat-bar-fill" style="width:90%;"></div></div></div>
+        <div class="f-stat"><div class="f-stat-emoji">✨</div><div class="f-stat-name">Trend Fit</div><div class="f-stat-val">58%</div><div class="f-stat-bar"><div class="f-stat-bar-fill" style="width:58%;"></div></div></div>
+      </div>
+      <div class="when-complete">
+        <div class="f-takeaway">
+          <div class="f-takeaway-label">Key Takeaway</div>
+          <div class="f-takeaway-text">Your track's rhythmic energy is exceptional — Movement scored in the top tier. Pair it with trending production elements to maximize virality.</div>
+        </div>
+      </div>
+      <div class="f-player">
+        <div class="f-play-btn"></div>
+        <div class="f-waveform" id="waveform-f"></div>
+        <div class="f-time">0:00 / 0:30</div>
+      </div>
+      <div class="f-share">
+        <div class="f-share-btn-main">Share Your Results</div>
+        <div class="f-share-row"><div class="f-share-sm">Post</div><div class="f-share-sm">Message</div><div class="f-share-sm">Email</div><div class="f-share-sm">Copy</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== CONCEPT G: Ticket Stub ==================== -->
+<div class="concept" id="concept-g">
+  <div class="concept-label">
+    <h2>G: Concert Ticket Stub</h2>
+    <p>Tear-away ticket with perforated edge, barcode, 2x2 dimension grid</p>
+  </div>
+  <div class="phone-frame">
+    <div class="g-wrap">
+      <div class="g-ticket">
+        <div class="g-notch-left"></div>
+        <div class="g-notch-right"></div>
+        <div class="g-ticket-top">
+          <div class="g-ticket-eyebrow">Soundcheck Results</div>
+          <div class="g-ticket-title">Late Night Drive</div>
+          <div class="g-ticket-context">TikTok/Reels Context</div>
+          <!-- Complete score -->
+          <div class="when-complete-flex" style="display:flex;" class="g-ticket-score-row">
+            <div class="g-ticket-score-row">
+              <div class="g-ticket-score">78%</div>
+              <div class="g-ticket-score-meta"><div class="g-ticket-score-label">Virality Score</div><div class="g-ticket-score-percentile">Top 15% of all tracks</div></div>
+            </div>
+          </div>
+          <!-- Collecting score -->
+          <div class="when-collecting">
+            <div class="g-ticket-score-row">
+              <div class="g-ticket-score" style="opacity:0.6;">~62%</div>
+              <div class="g-ticket-score-meta">
+                <div class="g-ticket-score-label" style="display:flex;align-items:center;gap:6px;"><span class="pulse-dot"></span> Preliminary</div>
+                <div class="g-ticket-score-percentile">8 of 20 votes collected</div>
+              </div>
+            </div>
+            <div style="margin-top:12px;height:4px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden;"><div style="width:40%;height:100%;background:rgba(255,255,255,0.4);border-radius:2px;"></div></div>
+          </div>
+        </div>
+        <div class="g-ticket-bottom">
+          <div class="g-dims-grid">
+            <div class="g-dim-cell"><div class="g-dim-emoji">🎣</div><div class="g-dim-name">Hook</div><div class="g-dim-val">85%</div></div>
+            <div class="g-dim-cell"><div class="g-dim-emoji">🧠</div><div class="g-dim-name">Memory</div><div class="g-dim-val">72%</div></div>
+            <div class="g-dim-cell"><div class="g-dim-emoji">💃</div><div class="g-dim-name">Movement</div><div class="g-dim-val">90%</div></div>
+            <div class="g-dim-cell"><div class="g-dim-emoji">✨</div><div class="g-dim-name">Trend</div><div class="g-dim-val">58%</div></div>
+          </div>
+          <div class="g-player">
+            <div class="shared-play-btn"></div>
+            <div class="shared-waveform" id="waveform-g"></div>
+            <div class="shared-time">0:00 / 0:30</div>
+          </div>
+          <div class="when-complete">
+            <div class="g-insights">
+              <div class="g-insight success"><div class="g-insight-emoji">🎯</div><div class="g-insight-text"><div class="g-insight-title">Movement is exceptional</div><div class="g-insight-desc">Top-tier rhythmic energy for dance platforms.</div></div></div>
+              <div class="g-insight warning"><div class="g-insight-emoji">📈</div><div class="g-insight-text"><div class="g-insight-title">Trend alignment could improve</div><div class="g-insight-desc">Adjust production to match trending sounds.</div></div></div>
+            </div>
+          </div>
+          <div class="g-barcode" id="barcode"></div>
+        </div>
+      </div>
+      <div class="g-share">
+        <div class="g-share-btns"><div class="g-share-btn">Post</div><div class="g-share-btn">Message</div><div class="g-share-btn">Email</div><div class="g-share-btn">Copy</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== CONCEPT H: Mixing Console ==================== -->
+<div class="concept" id="concept-h">
+  <div class="concept-label">
+    <h2>H: Mixing Console / Faders</h2>
+    <p>VU meter for score, vertical fader channels for each dimension, studio hardware feel</p>
+  </div>
+  <div class="phone-frame">
+    <div class="h-wrap">
+      <div class="h-header">
+        <div class="h-title">Late Night Drive</div>
+        <span class="when-complete"><div class="h-badge">Complete</div></span>
+        <span class="when-collecting"><div class="h-badge" style="background:oklch(0.55 0.2 145 / 0.1);color:oklch(0.7 0.18 145);border-color:oklch(0.55 0.2 145 / 0.15);"><span class="pulse-dot" style="margin-right:4px;"></span> Collecting</div></span>
+        <!-- Collecting: progress -->
+        <div class="when-collecting" style="margin-top:10px;">
+          <div class="vote-progress" style="margin:0;">
+            <div class="vote-progress-bar"><div class="vote-progress-fill" style="width:40%;"></div></div>
+            <div class="vote-progress-text">8 of 20 votes collected</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- VU Meter -->
+      <div class="h-vu-section">
+        <div class="h-vu-label">Virality Score</div>
+        <div class="h-vu-meter">
+          <svg viewBox="0 0 240 120">
+            <!-- Meter arc background -->
+            <path d="M 30 110 A 90 90 0 0 1 210 110" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="16" stroke-linecap="round"/>
+            <!-- Score arc -->
+            <path d="M 30 110 A 90 90 0 0 1 210 110" fill="none" stroke="url(#vu-grad)" stroke-width="16" stroke-linecap="round" stroke-dasharray="283" stroke-dashoffset="62"/>
+            <!-- Tick marks -->
+            <line x1="30" y1="110" x2="38" y2="104" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+            <line x1="50" y1="80" x2="58" y2="82" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+            <line x1="85" y1="45" x2="90" y2="52" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+            <line x1="120" y1="30" x2="120" y2="38" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+            <line x1="155" y1="45" x2="150" y2="52" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+            <line x1="190" y1="80" x2="182" y2="82" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+            <line x1="210" y1="110" x2="202" y2="104" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+            <!-- Labels -->
+            <text x="28" y="118" font-size="8" fill="rgba(255,255,255,0.25)" text-anchor="middle">0</text>
+            <text x="120" y="26" font-size="8" fill="rgba(255,255,255,0.25)" text-anchor="middle">50</text>
+            <text x="212" y="118" font-size="8" fill="rgba(255,255,255,0.25)" text-anchor="middle">100</text>
+            <!-- Needle -->
+            <line x1="120" y1="115" x2="175" y2="55" stroke="oklch(0.8 0.15 20)" stroke-width="2" stroke-linecap="round"/>
+            <circle cx="120" cy="115" r="4" fill="oklch(0.8 0.15 20)"/>
+            <defs>
+              <linearGradient id="vu-grad" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stop-color="oklch(0.55 0.2 145)"/>
+                <stop offset="60%" stop-color="oklch(0.65 0.22 100)"/>
+                <stop offset="100%" stop-color="oklch(0.6 0.22 25)"/>
+              </linearGradient>
+            </defs>
+          </svg>
+          <div class="h-vu-value">78%</div>
+        </div>
+        <div class="h-vu-percentile">Top 15% of all tracks tested</div>
+      </div>
+
+      <!-- Fader Channels -->
+      <div class="h-console">
+        <div class="h-console-label">Channel Mix</div>
+        <div class="h-channels">
+          <div class="h-channel">
+            <div class="h-ch-emoji">🎣</div>
+            <div class="h-ch-name">Hook</div>
+            <div class="h-fader-track">
+              <div class="h-fader-fill" style="height:85%;background:linear-gradient(180deg, oklch(0.6 0.2 293), oklch(0.35 0.15 293));"></div>
+              <div class="h-fader-knob" style="bottom:calc(85% - 5px);"></div>
+            </div>
+            <div class="h-ch-value" style="color:oklch(0.7 0.2 293);">85%</div>
+            <div class="h-ch-led" style="background:oklch(0.6 0.2 145);box-shadow:0 0 4px oklch(0.5 0.2 145);"></div>
+          </div>
+          <div class="h-channel">
+            <div class="h-ch-emoji">🧠</div>
+            <div class="h-ch-name">Memory</div>
+            <div class="h-fader-track">
+              <div class="h-fader-fill" style="height:72%;background:linear-gradient(180deg, oklch(0.6 0.2 293), oklch(0.35 0.15 293));"></div>
+              <div class="h-fader-knob" style="bottom:calc(72% - 5px);"></div>
+            </div>
+            <div class="h-ch-value" style="color:oklch(0.7 0.2 293);">72%</div>
+            <div class="h-ch-led" style="background:oklch(0.6 0.2 145);box-shadow:0 0 4px oklch(0.5 0.2 145);"></div>
+          </div>
+          <div class="h-channel">
+            <div class="h-ch-emoji">💃</div>
+            <div class="h-ch-name">Move</div>
+            <div class="h-fader-track">
+              <div class="h-fader-fill" style="height:90%;background:linear-gradient(180deg, oklch(0.6 0.2 293), oklch(0.35 0.15 293));"></div>
+              <div class="h-fader-knob" style="bottom:calc(90% - 5px);"></div>
+            </div>
+            <div class="h-ch-value" style="color:oklch(0.7 0.2 293);">90%</div>
+            <div class="h-ch-led" style="background:oklch(0.6 0.2 145);box-shadow:0 0 4px oklch(0.5 0.2 145);"></div>
+          </div>
+          <div class="h-channel">
+            <div class="h-ch-emoji">✨</div>
+            <div class="h-ch-name">Trend</div>
+            <div class="h-fader-track">
+              <div class="h-fader-fill" style="height:58%;background:linear-gradient(180deg, oklch(0.55 0.15 270), oklch(0.35 0.1 260));"></div>
+              <div class="h-fader-knob" style="bottom:calc(58% - 5px);"></div>
+            </div>
+            <div class="h-ch-value" style="color:oklch(0.6 0.15 270);">58%</div>
+            <div class="h-ch-led" style="background:oklch(0.55 0.18 85);box-shadow:0 0 4px oklch(0.5 0.18 85);"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Player -->
+      <div class="h-player">
+        <div class="e-play-btn"></div>
+        <div class="c-waveform" id="waveform-h"></div>
+        <div class="c-time">0:00 / 0:30</div>
+      </div>
+
+      <!-- Insights -->
+      <div class="h-insights">
+        <div class="h-insights-label">Signal Notes</div>
+        <div class="h-insight"><div class="h-insight-title">Movement channel is peaking</div><div class="h-insight-desc">Rhythmic energy in the top tier — ideal for dance-driven platforms.</div></div>
+        <div class="h-insight"><div class="h-insight-title">Trend channel running low</div><div class="h-insight-desc">Boosting production alignment with current sounds could help.</div></div>
+      </div>
+
+      <!-- Share -->
+      <div class="h-share">
+        <div class="h-share-btns"><div class="h-share-btn">Post</div><div class="h-share-btn">Message</div><div class="h-share-btn">Email</div><div class="h-share-btn">Copy</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== CONCEPT I: Festival Poster ==================== -->
+<div class="concept" id="concept-i">
+  <div class="concept-label">
+    <h2>I: Festival Poster + Laser Show</h2>
+    <p>Giant typographic score, laser beams, crowd with phone flashlights, "lineup" style dimensions</p>
+  </div>
+  <div class="phone-frame">
+    <div class="i-wrap">
+      <div class="i-lasers">
+        <div class="i-laser"></div><div class="i-laser"></div><div class="i-laser"></div>
+        <div class="i-laser"></div><div class="i-laser"></div>
+      </div>
+
+      <div class="i-header">
+        <span class="when-complete"><div class="i-eyebrow">Final Results</div></span>
+        <span class="when-collecting"><div class="i-eyebrow" style="display:flex;align-items:center;gap:8px;"><span class="pulse-dot"></span> Collecting Votes</div></span>
+        <div class="i-title">Late Night Drive</div>
+        <div class="i-context">TikTok/Reels Context</div>
+      </div>
+
+      <!-- Complete score -->
+      <div class="when-complete">
+        <div class="i-score-poster">
+          <div class="i-score-big">78</div>
+          <div class="i-score-meta">
+            <div class="i-score-pct">%</div>
+            <div class="i-score-label">Virality</div>
+            <div class="i-percentile-tag">Top 15%</div>
+          </div>
+        </div>
+      </div>
+      <!-- Collecting score -->
+      <div class="when-collecting">
+        <div class="i-score-poster">
+          <div class="i-score-big" style="opacity:0.4;font-size:100px;">62</div>
+          <div class="i-score-meta">
+            <div class="i-score-pct" style="opacity:0.3;">%</div>
+            <div class="i-score-label">Preliminary</div>
+            <div class="i-percentile-tag">8 of 20 votes</div>
+          </div>
+        </div>
+        <div class="vote-progress" style="margin:0 24px;">
+          <div class="vote-progress-bar"><div class="vote-progress-fill" style="width:40%;"></div></div>
+        </div>
+      </div>
+
+      <!-- Crowd with phone lights -->
+      <div class="i-crowd-section">
+        <svg viewBox="0 0 432 80" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="icg" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="white" stop-opacity="0.1"/>
+              <stop offset="1" stop-color="white" stop-opacity="0.02"/>
+            </linearGradient>
+          </defs>
+          <!-- Phone flashlights -->
+          <rect x="55" y="0" width="2" height="16" rx="1" fill="white" opacity="0.25"/>
+          <rect x="120" y="2" width="2" height="14" rx="1" fill="white" opacity="0.2"/>
+          <rect x="200" y="0" width="2" height="18" rx="1" fill="white" opacity="0.3"/>
+          <rect x="280" y="3" width="2" height="13" rx="1" fill="white" opacity="0.2"/>
+          <rect x="340" y="1" width="2" height="15" rx="1" fill="white" opacity="0.25"/>
+          <rect x="400" y="2" width="2" height="14" rx="1" fill="white" opacity="0.15"/>
+          <!-- Phone rectangles -->
+          <rect x="50" y="16" width="12" height="18" rx="2" fill="white" opacity="0.08"/>
+          <rect x="115" y="16" width="12" height="18" rx="2" fill="white" opacity="0.06"/>
+          <rect x="195" y="14" width="12" height="20" rx="2" fill="white" opacity="0.09"/>
+          <rect x="275" y="18" width="12" height="16" rx="2" fill="white" opacity="0.06"/>
+          <rect x="335" y="15" width="12" height="19" rx="2" fill="white" opacity="0.08"/>
+          <rect x="395" y="17" width="12" height="17" rx="2" fill="white" opacity="0.05"/>
+          <!-- Crowd heads -->
+          <circle cx="30" cy="42" r="9" fill="url(#icg)"/><circle cx="58" cy="38" r="10" fill="url(#icg)"/>
+          <circle cx="90" cy="44" r="8" fill="url(#icg)"/><circle cx="122" cy="37" r="11" fill="url(#icg)"/>
+          <circle cx="155" cy="42" r="9" fill="url(#icg)"/><circle cx="186" cy="45" r="8" fill="url(#icg)"/>
+          <circle cx="202" cy="36" r="10" fill="url(#icg)"/><circle cx="238" cy="40" r="9" fill="url(#icg)"/>
+          <circle cx="270" cy="43" r="8" fill="url(#icg)"/><circle cx="282" cy="36" r="10" fill="url(#icg)"/>
+          <circle cx="316" cy="42" r="9" fill="url(#icg)"/><circle cx="342" cy="38" r="10" fill="url(#icg)"/>
+          <circle cx="376" cy="44" r="8" fill="url(#icg)"/><circle cx="402" cy="40" r="9" fill="url(#icg)"/>
+          <!-- Body mass -->
+          <rect x="0" y="50" width="432" height="30" fill="url(#icg)"/>
+        </svg>
+      </div>
+
+      <!-- Player -->
+      <div class="i-section" style="padding: 16px 24px;">
+        <div style="padding:14px 16px;background:rgba(255,255,255,0.04);border-radius:14px;border:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;gap:12px;">
+          <div class="e-play-btn"></div>
+          <div class="c-waveform" id="waveform-i"></div>
+          <div class="c-time">0:00 / 0:30</div>
+        </div>
+      </div>
+
+      <!-- Lineup-style dimensions -->
+      <div class="i-lineup">
+        <div class="i-lineup-title">The Lineup</div>
+        <div class="i-lineup-row headliner">
+          <div class="i-lineup-left"><span class="i-lineup-emoji">💃</span><span class="i-lineup-name">Movement</span></div>
+          <div class="i-lineup-pct">90%</div>
+        </div>
+        <div class="i-lineup-row headliner">
+          <div class="i-lineup-left"><span class="i-lineup-emoji">🎣</span><span class="i-lineup-name">Hook Factor</span></div>
+          <div class="i-lineup-pct">85%</div>
+        </div>
+        <div class="i-lineup-row">
+          <div class="i-lineup-left"><span class="i-lineup-emoji">🧠</span><span class="i-lineup-name">Memorability</span></div>
+          <div class="i-lineup-pct">72%</div>
+        </div>
+        <div class="i-lineup-row">
+          <div class="i-lineup-left"><span class="i-lineup-emoji">✨</span><span class="i-lineup-name">Trend Fit</span></div>
+          <div class="i-lineup-pct">58%</div>
+        </div>
+      </div>
+
+      <!-- Insights (complete only) -->
+      <div class="when-complete i-section" style="padding: 0 24px 20px;">
+        <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:3px;color:rgba(255,255,255,0.25);margin-bottom:12px;">Backstage Notes</div>
+        <div style="padding:14px 16px;border-radius:12px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);margin-bottom:8px;">
+          <div style="font-size:13px;font-weight:700;color:rgba(255,255,255,0.85);">Movement would headline any set</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:3px;">Top-tier rhythmic energy — built for live + short-form.</div>
+        </div>
+        <div style="padding:14px 16px;border-radius:12px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);">
+          <div style="font-size:13px;font-weight:700;color:rgba(255,255,255,0.85);">Trend Fit is the opener</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:3px;">Aligning with current sounds could move this up the bill.</div>
+        </div>
+      </div>
+
+      <!-- Share -->
+      <div class="i-section" style="padding: 0 24px 24px;">
+        <div style="display:flex;gap:8px;">
+          <div style="flex:1;padding:10px;border-radius:8px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);font-size:12px;font-weight:600;text-align:center;cursor:pointer;">Post</div>
+          <div style="flex:1;padding:10px;border-radius:8px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);font-size:12px;font-weight:600;text-align:center;cursor:pointer;">Message</div>
+          <div style="flex:1;padding:10px;border-radius:8px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);font-size:12px;font-weight:600;text-align:center;cursor:pointer;">Copy</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== CONCEPT J: Arena Scoreboard ==================== -->
+<div class="concept" id="concept-j">
+  <div class="concept-label">
+    <h2>J: Arena Scoreboard</h2>
+    <p>LED scoreboard aesthetic, amber readout, crowd wave animation, stat cells</p>
+  </div>
+  <div class="phone-frame">
+    <div class="j-wrap">
+      <div class="j-scoreboard">
+        <div class="j-sb-header">
+          <div class="j-sb-logo">Soundcheck</div>
+          <div class="j-sb-dots">
+            <span class="when-complete" style="background:oklch(0.6 0.2 145);box-shadow:0 0 4px oklch(0.5 0.2 145);display:inline-block;"></span>
+            <span class="when-collecting" style="background:oklch(0.7 0.15 80);box-shadow:0 0 4px oklch(0.6 0.15 80);display:inline-block;animation:pulse-ring 1.5s ease infinite;"></span>
+          </div>
+        </div>
+
+        <div class="j-led-section">
+          <div class="j-led-title">Late Night Drive</div>
+          <div class="j-led-context">TikTok/Reels</div>
+          <!-- Complete -->
+          <div class="when-complete">
+            <div class="j-led-score">78%</div>
+            <div class="j-led-sublabel">Virality Score</div>
+            <div class="j-led-percentile">Top 15%</div>
+          </div>
+          <!-- Collecting -->
+          <div class="when-collecting">
+            <div class="j-led-score" style="opacity:0.5;font-size:64px;">~62%</div>
+            <div class="j-led-sublabel">Preliminary</div>
+            <div style="margin:12px auto 0;width:180px;height:4px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden;">
+              <div style="width:40%;height:100%;background:oklch(0.7 0.15 80 / 0.5);border-radius:2px;"></div>
+            </div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.25);margin-top:8px;">8 of 20 votes</div>
+          </div>
+        </div>
+
+        <div class="j-stats-grid">
+          <div class="j-stat-cell">
+            <div class="j-stat-emoji">🎣</div>
+            <div class="j-stat-label">Hook</div>
+            <div class="j-stat-val hot">85%</div>
+          </div>
+          <div class="j-stat-cell">
+            <div class="j-stat-emoji">🧠</div>
+            <div class="j-stat-label">Memory</div>
+            <div class="j-stat-val warm">72%</div>
+          </div>
+          <div class="j-stat-cell">
+            <div class="j-stat-emoji">💃</div>
+            <div class="j-stat-label">Movement</div>
+            <div class="j-stat-val hot">90%</div>
+          </div>
+          <div class="j-stat-cell">
+            <div class="j-stat-emoji">✨</div>
+            <div class="j-stat-label">Trend</div>
+            <div class="j-stat-val cool">58%</div>
+          </div>
+        </div>
+
+        <!-- Crowd wave -->
+        <div class="j-crowd-wave">
+          <div class="j-crowd-label">Crowd Response</div>
+          <div class="j-wave-bars" id="wave-bars"></div>
+        </div>
+      </div>
+
+      <!-- Below scoreboard -->
+      <div class="j-below">
+        <div class="j-player">
+          <div class="e-play-btn"></div>
+          <div class="c-waveform" id="waveform-j"></div>
+          <div class="c-time">0:00 / 0:30</div>
+        </div>
+
+        <div class="when-complete">
+          <div class="j-insights">
+            <div class="j-insight"><div class="j-insight-title">Movement is crowd-surfing levels</div><div class="j-insight-desc">Top-tier rhythmic energy for dance-driven virality.</div></div>
+            <div class="j-insight"><div class="j-insight-title">Trend Fit in the nosebleeds</div><div class="j-insight-desc">Production alignment with current sounds needs work.</div></div>
+          </div>
+        </div>
+
+        <div class="j-share-btns">
+          <div class="j-share-btn">Post</div>
+          <div class="j-share-btn">Message</div>
+          <div class="j-share-btn">Email</div>
+          <div class="j-share-btn">Copy</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function showConcept(id) {
+    document.querySelectorAll('.concept').forEach(c => c.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('concept-' + id).classList.add('active');
+    event.target.classList.add('active');
+  }
+
+  function toggleState() {
+    const body = document.body;
+    const track = document.getElementById('state-toggle');
+    const isCollecting = body.classList.toggle('collecting');
+    track.classList.toggle('on', isCollecting);
+    document.getElementById('label-complete').classList.toggle('active-label', !isCollecting);
+    document.getElementById('label-collecting').classList.toggle('active-label', isCollecting);
+  }
+
+  function generateWaveform(containerId, barCount, filledPct) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    for (let i = 0; i < barCount; i++) {
+      const bar = document.createElement('div');
+      bar.className = 'bar' + (i / barCount < filledPct ? ' filled' : '');
+      const h = 20 + Math.random() * 80;
+      bar.style.height = h + '%';
+      container.appendChild(bar);
+    }
+  }
+
+  function generateFreqTicks(containerId, count) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    for (let i = 0; i < count; i++) {
+      const tick = document.createElement('span');
+      tick.style.height = (30 + Math.random() * 70) + '%';
+      container.appendChild(tick);
+    }
+  }
+
+  // Generate barcode
+  function generateBarcode(containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    for (let i = 0; i < 60; i++) {
+      const bar = document.createElement('span');
+      bar.style.width = (Math.random() > 0.5 ? 2 : 1) + 'px';
+      container.appendChild(bar);
+    }
+  }
+
+  // Init all waveforms
+  ['waveform-a','waveform-b','waveform-d','waveform-g'].forEach(id => generateWaveform(id, 40, 0.4));
+  ['waveform-c','waveform-e','waveform-h'].forEach(id => {
+    const c = document.getElementById(id);
+    if (!c) return;
+    for (let i = 0; i < 50; i++) {
+      const bar = document.createElement('div');
+      bar.className = 'bar' + (i / 50 < 0.4 ? ' filled' : '');
+      bar.style.height = (20 + Math.random() * 80) + '%';
+      c.appendChild(bar);
+    }
+  });
+  generateWaveform('waveform-f', 40, 0.4);
+
+  // Concept I & J waveforms
+  ['waveform-i','waveform-j'].forEach(id => {
+    const c = document.getElementById(id);
+    if (!c) return;
+    for (let i = 0; i < 50; i++) {
+      const bar = document.createElement('div');
+      bar.className = 'bar' + (i / 50 < 0.4 ? ' filled' : '');
+      bar.style.height = (20 + Math.random() * 80) + '%';
+      c.appendChild(bar);
+    }
+  });
+
+  // Arena wave bars
+  const waveBars = document.getElementById('wave-bars');
+  if (waveBars) {
+    for (let i = 0; i < 30; i++) {
+      const bar = document.createElement('span');
+      bar.style.height = '40px';
+      bar.style.animationDelay = (i * 0.08) + 's';
+      waveBars.appendChild(bar);
+    }
+  }
+
+  ['freq-a','freq-b','freq-c','freq-d'].forEach(id => generateFreqTicks(id, 20));
+  generateBarcode('barcode');
+</script>
+
+</body>
+</html>
