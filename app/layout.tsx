@@ -33,17 +33,19 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={inter.variable}>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+      <head>
         {process.env.NODE_ENV === "production" && (
           <Script
             async
             src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3047999567481055"
-            strategy="afterInteractive"
+            strategy="beforeInteractive"
             crossOrigin="anonymous"
           />
         )}
+      </head>
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+      >
         <AuthProvider>
           <TooltipProvider delayDuration={300}>
             <div className="min-h-screen pb-20">{children}</div>
