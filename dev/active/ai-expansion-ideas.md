@@ -48,9 +48,3 @@ A conversational interface where uploaders can ask follow-up questions about the
 
 ### AI Battle Mode
 Two tracks go head-to-head, Claude provides commentary like a music critic comparing them.
-
-## Top 3 for Hackathon (highest impact, tight deadline)
-
-1. **AI as a Rater** — Immediately doubles the AI presence, creates engagement, and is technically interesting (structured output on music dimensions)
-2. **Chat with Your Results** — Showcases Claude's conversational strength and the large context window (feed it all ratings + dimensions + existing insights)
-3. **Virality Pre-Score** — Creates a compelling before/after narrative (AI prediction vs. crowd reality)
