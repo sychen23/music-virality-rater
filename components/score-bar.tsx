@@ -11,15 +11,14 @@ export function ScoreBar({ label, emoji, score, maxScore = 3 }: ScoreBarProps) {
   const pct = (score / maxScore) * 100;
 
   return (
-    <div className="space-y-1">
-      <div className="flex items-center justify-between text-sm">
-        <span className="flex items-center gap-1.5">
+    <div className="flex items-center gap-2.5">
+      <div className="w-[130px] shrink-0">
+        <span className="flex items-center gap-1.5 text-xs font-semibold">
           <span>{emoji}</span>
-          <span className="font-medium">{label}</span>
+          <span>{label}</span>
         </span>
-        <span className="font-bold text-primary">{Math.round(pct)}%</span>
       </div>
-      <div className="h-2.5 overflow-hidden rounded-full bg-muted">
+      <div className="h-7 flex-1 overflow-hidden rounded-full bg-muted">
         <div
           className={cn(
             "h-full rounded-full transition-all",
@@ -28,6 +27,18 @@ export function ScoreBar({ label, emoji, score, maxScore = 3 }: ScoreBarProps) {
           style={{ width: `${pct}%` }}
         />
       </div>
+      <span
+        className={cn(
+          "w-10 shrink-0 text-right text-sm font-extrabold",
+          pct >= 70
+            ? "text-primary"
+            : pct >= 40
+              ? "text-chart-2"
+              : "text-chart-4"
+        )}
+      >
+        {Math.round(pct)}%
+      </span>
     </div>
   );
 }
