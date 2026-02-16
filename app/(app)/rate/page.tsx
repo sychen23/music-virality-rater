@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { AudioPlayer } from "@/components/audio-player";
+import { RateAudioPlayer } from "@/components/rate-audio-player";
 import { RatingTrackColumns } from "@/components/rating-track-columns";
 import { useAuth } from "@/components/auth-provider";
 import { getContextById, type Dimension } from "@/lib/constants/contexts";
@@ -168,7 +168,7 @@ export default function RatePage() {
 
       {/* Audio player */}
       <div className="mb-6">
-        <AudioPlayer
+        <RateAudioPlayer
           key={track.id}
           audioUrl={track.audioFilename}
           snippetStart={track.snippetStart ?? undefined}
