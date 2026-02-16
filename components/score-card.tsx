@@ -139,11 +139,11 @@ export function ScoreCard({
       </div>
 
       {/* Swaying crowd */}
-      <div className="relative z-[1] -mt-2 h-[55px] overflow-hidden">
+      <div className="relative z-[1] -mt-2 h-[70px]">
         <svg
           viewBox="0 0 490 56"
-          preserveAspectRatio="xMidYMax slice"
-          className="block h-[55px] w-full"
+          preserveAspectRatio="xMidYMax meet"
+          className="absolute bottom-0 block w-full"
           style={{ opacity: crowdOpacity }}
         >
           {people.map((p, i) => (
