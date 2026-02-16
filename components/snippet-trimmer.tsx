@@ -24,7 +24,8 @@ export function SnippetTrimmer({
   maxDuration = 30,
 }: SnippetTrimmerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [dragging, setDragging] = useState<"start" | "end" | null>(null);
+  const [dragging, setDragging] = useState<"start" | "end" | "region" | null>(null);
+  const dragOffsetRef = useRef(0);
 
   const getTimeFromX = useCallback(
     (clientX: number) => {
@@ -38,7 +39,16 @@ export function SnippetTrimmer({
 
   const handlePointerDown = (handle: "start" | "end") => (e: React.PointerEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     setDragging(handle);
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  };
+
+  const handleRegionPointerDown = (e: React.PointerEvent) => {
+    e.preventDefault();
+    const time = getTimeFromX(e.clientX);
+    dragOffsetRef.current = time - snippetStart;
+    setDragging("region");
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
   };
 
@@ -47,7 +57,12 @@ export function SnippetTrimmer({
       if (!dragging) return;
       const time = getTimeFromX(e.clientX);
 
-      if (dragging === "start") {
+      if (dragging === "region") {
+        const regionDuration = snippetEnd - snippetStart;
+        let newStart = time - dragOffsetRef.current;
+        newStart = Math.max(0, Math.min(newStart, duration - regionDuration));
+        onRangeChange(newStart, newStart + regionDuration);
+      } else if (dragging === "start") {
         const newStart = Math.max(0, Math.min(time, snippetEnd - minDuration));
         const clampedStart =
           snippetEnd - newStart > maxDuration
@@ -110,6 +125,13 @@ export function SnippetTrimmer({
         >
           <WaveformVisualizer audioUrl={audioUrl} duration={duration} className="h-full" />
         </div>
+
+        {/* Draggable region */}
+        <div
+          className="absolute top-0 h-full cursor-grab touch-none active:cursor-grabbing"
+          style={{ left: `${startPct}%`, width: `${endPct - startPct}%` }}
+          onPointerDown={handleRegionPointerDown}
+        />
 
         {/* Left handle */}
         <div
