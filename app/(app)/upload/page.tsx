@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/tooltip";
 import { AudioPlayer } from "@/components/audio-player";
 import { SnippetTrimmer } from "@/components/snippet-trimmer";
+import { SnippetSuggestion } from "@/components/snippet-suggestion";
 import { GenreTagSelector } from "@/components/genre-tag-selector";
 import { ContextCard } from "@/components/context-card";
 import { VotePackageSelector } from "@/components/vote-package-selector";
@@ -382,6 +383,14 @@ export default function UploadPage() {
                 snippetStart={snippetStart}
                 snippetEnd={snippetEnd}
                 onRangeChange={(s, e) => {
+                  setSnippetStart(s);
+                  setSnippetEnd(e);
+                }}
+              />
+              <SnippetSuggestion
+                audioUrl={audioUrl}
+                duration={duration}
+                onApply={(s, e) => {
                   setSnippetStart(s);
                   setSnippetEnd(e);
                 }}
