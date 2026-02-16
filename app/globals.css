@@ -135,3 +135,24 @@
     @apply cursor-pointer;
   }
 }
+
+/* Score card — sweeping stage lights */
+@keyframes sweep {
+  0%, 100% { transform: rotate(-5deg); opacity: 0.8; }
+  50% { transform: rotate(5deg); opacity: 1; }
+}
+
+.animate-sweep {
+  animation: sweep 6s ease-in-out infinite;
+}
+
+/* Score card — crowd sway wave */
+@keyframes sway-wave {
+  0%, 100% { transform: translateX(0) rotate(0deg); }
+  30% { transform: translateX(-1px) rotate(-0.6deg); }
+  70% { transform: translateX(1px) rotate(0.6deg); }
+}
+
+.animate-sway-wave {
+  animation: sway-wave 5s ease-in-out infinite;
+}
